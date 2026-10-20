@@ -161,6 +161,108 @@ class TikTok:
         except Exception as e:
             return str(e)
 
+class Account:
+    def __init__(self, sessionid: str, index: int) -> None:
+        self.sessionid = sessionid
+        self.index = index
+        self.label = f"Acc #{index} (...{sessionid[-6:]})" if len(sessionid) >= 6 else f"Acc #{index}"
+        self.tiktok = TikTok(sessionid)
+        self.cooldown_until = 0
+        self.sent_count = 0
+        self.fail_count = 0
+
+    @property
+    def is_available(self) -> bool:
+        return time.time() >= self.cooldown_until
+
+    @property
+    def cooldown_remaining(self) -> int:
+        return max(0, int(self.cooldown_until - time.time()))
+
+    def trigger_cooldown(self, seconds: int = 600) -> None:
+        self.cooldown_until = time.time() + seconds
+
+
+class AccountPool:
+    def __init__(self, sessions: list) -> None:
+        self.accounts = [Account(s, i + 1) for i, s in enumerate(sessions)]
+        self.current_idx = 0
+
+    def get_next_available(self) -> Account:
+        if not self.accounts:
+            return None
+
+        # Check in round-robin order
+        for _ in range(len(self.accounts)):
+            acc = self.accounts[self.current_idx % len(self.accounts)]
+            self.current_idx = (self.current_idx + 1) % len(self.accounts)
+            if acc.is_available:
+                return acc
+
+        # All accounts are currently on cooldown
+        shortest_acc = min(self.accounts, key=lambda a: a.cooldown_remaining)
+        wait_time = shortest_acc.cooldown_remaining
+        print(f"\n[!] All {len(self.accounts)} account(s) are currently resting.")
+        print(f"[*] Shortest cooldown is {shortest_acc.label} ({wait_time}s remaining). Waiting...")
+        time.sleep(wait_time + 1)
+        return shortest_acc
+
+    def print_summary(self) -> None:
+        print(f"\n[+] Loaded {len(self.accounts)} TikTok Account(s) into Carousel:")
+        for acc in self.accounts:
+            status = "Ready" if acc.is_available else f"Cooldown ({acc.cooldown_remaining}s)"
+            print(f"    • {acc.label} - Status: {status}")
+        print("")
+
+
+def load_accounts() -> list:
+    sessions = []
+    # 1. Load from accounts.txt
+    if os.path.exists("accounts.txt"):
+        try:
+            with open("accounts.txt", "r", encoding="utf-8") as f:
+                for line in f:
+                    s = line.strip()
+                    if s and not s.startswith("#") and s not in sessions:
+                        sessions.append(s)
+        except Exception:
+            pass
+
+    # 2. Fallback to config.json
+    if not sessions and os.path.exists("config.json"):
+        try:
+            with open("config.json", "r", encoding="utf-8") as cf:
+                cfg = json.load(cf)
+                if isinstance(cfg.get("sessions"), list):
+                    sessions = [s.strip() for s in cfg["sessions"] if s.strip()]
+                elif cfg.get("sessionid"):
+                    sessions = [cfg["sessionid"].strip()]
+        except Exception:
+            pass
+
+    # 3. Prompt user if still empty
+    if not sessions:
+        user_in = input("\nEnter your TikTok Session ID (or multiple separated by commas) : ").strip()
+        if user_in:
+            for part in user_in.split(","):
+                part = part.strip()
+                if part and part not in sessions:
+                    sessions.append(part)
+
+    # Save to accounts.txt and config.json
+    if sessions:
+        try:
+            with open("accounts.txt", "w", encoding="utf-8") as f:
+                f.write("# TikTok Session IDs (one per line)\n\n")
+                for s in sessions:
+                    f.write(s + "\n")
+            with open("config.json", "w", encoding="utf-8") as cf:
+                json.dump({"sessions": sessions, "sessionid": sessions[0]}, cf, indent=4)
+        except Exception:
+            pass
+
+    return sessions
+
 
 if __name__ == "__main__":
     if hasattr(sys.stdout, "reconfigure"):
@@ -183,39 +285,24 @@ if __name__ == "__main__":
         print("| " + line.ljust(width - 3) + " |") 
     print(border)
     
-    saved_session = ""
-    if os.path.exists("config.json"):
-        try:
-            with open("config.json", "r", encoding="utf-8") as cf:
-                cfg = json.load(cf)
-                saved_session = cfg.get("sessionid", "")
-        except Exception:
-            pass
+    sessions = load_accounts()
+    if not sessions:
+        print("[-] No valid session IDs provided. Exiting.")
+        sys.exit(1)
 
-    prompt_session = f"\nEnter your TikTok Sessionid (press Enter to use saved) : " if saved_session else "\nEnter your TikTok Sessionid : "
-    sessionid = input(prompt_session).strip()
-    if not sessionid and saved_session:
-        sessionid = saved_session
-
-    if sessionid:
-        try:
-            with open("config.json", "w", encoding="utf-8") as cf:
-                json.dump({"sessionid": sessionid}, cf, indent=4)
-        except Exception:
-            pass
-
-    tiktok = TikTok(sessionid)
+    pool = AccountPool(sessions)
+    pool.print_summary()
 
     if not os.path.exists("comments.json"):
         with open("comments.json", "w", encoding="utf-8") as f:
-            json.dump({"UA": [], "EN": [], "RU": [], "AR": []}, f, indent=4, ensure_ascii=False)
+            json.dump({"UA": [], "EN": [], "RU": []}, f, indent=4, ensure_ascii=False)
 
     with open("comments.json", "r", encoding="utf-8") as f:
         com = json.load(f)
 
     available_langs = " / ".join(com.keys())
     default_lang = "RU" if "RU" in com else ("UA" if "UA" in com else list(com.keys())[0])
-    lang = input(f"\nChoose comment language ({available_langs}) [Default: {default_lang}] : ").strip().upper()
+    lang = input(f"Choose comment language ({available_langs}) [Default: {default_lang}] : ").strip().upper()
     if not lang:
         lang = default_lang
     comments = com.get(lang, [])
@@ -243,20 +330,23 @@ if __name__ == "__main__":
 
     mode_names = {"1": "Mixed (Replies + Video)", "2": "Replies Only", "3": "Video Comments Only"}
     print(f"\n[+] Loaded {len(comments)} comment(s) for [{lang}]. Mode: {mode_names[mode]}")
-    print("[*] Press Ctrl+C at any time to stop.\n")
+    print("[*] Carousel active. Press Ctrl+C at any time to stop.\n")
 
     while True:
-        videos = tiktok.get_video()
+        acc_for_feed = pool.get_next_available()
+        videos = acc_for_feed.tiktok.get_video()
         if videos:
             print(f"[*] Found {len(videos)} video(s) in feed...")
             for vid in videos:
                 comment = random.choice(comments)
                 
+                worker = pool.get_next_available()
+                
                 do_reply = False
                 target_c = None
                 
                 if mode in ["1", "2"]:
-                    existing_comments = tiktok.get_comments(vid)
+                    existing_comments = worker.tiktok.get_comments(vid)
                     if existing_comments:
                         if mode == "2" or random.random() < 0.7:  # 70% reply in mixed mode
                             do_reply = True
@@ -265,33 +355,40 @@ if __name__ == "__main__":
                         continue
 
                 if do_reply and target_c:
-                    send = tiktok.send(comment, vid, reply_id=target_c['cid'])
+                    send = worker.tiktok.send(comment, vid, reply_id=target_c['cid'])
                     user_label = target_c['user'][:15]
                     if send is True:
-                        print(f"[+] Replied to @{user_label}: '{comment}'")
+                        worker.sent_count += 1
+                        print(f"[+] [{worker.label}] Replied to @{user_label}: '{comment}' (Sent: {worker.sent_count})")
                     elif send == "Spam":
-                        print("\n[!] TikTok Spam Limit: commenting too fast.")
-                        print("[*] Pausing for 60s cooldown so TikTok restriction expires...")
-                        time.sleep(60)
-                        break
+                        print(f"\n[!] [{worker.label}] Hit TikTok Spam Limit! Pausing account for 10 min...")
+                        worker.trigger_cooldown(600)
+                        if any(a.is_available for a in pool.accounts):
+                            print(f"[*] Instantly switching to next available account...")
+                        continue
                     else:
+                        worker.fail_count += 1
                         err_detail = f" [TikTok: {send}]" if isinstance(send, str) else ""
-                        print(f"[-] Reply failed to @{user_label}{err_detail}")
+                        print(f"[-] [{worker.label}] Reply failed to @{user_label}{err_detail}")
                 else:
-                    send = tiktok.send(comment, vid)
+                    send = worker.tiktok.send(comment, vid)
                     if send is True:
-                        print(f"[+] Commented video {vid}: '{comment}'")
+                        worker.sent_count += 1
+                        print(f"[+] [{worker.label}] Commented video {vid}: '{comment}' (Sent: {worker.sent_count})")
                     elif send == "Spam":
-                        print("\n[!] TikTok Spam Limit: commenting too fast.")
-                        print("[*] Pausing for 60s cooldown so TikTok restriction expires...")
-                        time.sleep(60)
-                        break
+                        print(f"\n[!] [{worker.label}] Hit TikTok Spam Limit! Pausing account for 10 min...")
+                        worker.trigger_cooldown(600)
+                        if any(a.is_available for a in pool.accounts):
+                            print(f"[*] Instantly switching to next available account...")
+                        continue
                     else:
+                        worker.fail_count += 1
                         err_detail = f" [TikTok: {send}]" if isinstance(send, str) else ""
-                        print(f"[-] Comment failed on {vid}{err_detail}")
+                        print(f"[-] [{worker.label}] Comment failed on {vid}{err_detail}")
 
-                time.sleep(random.randint(5, 8))
+                delay = random.randint(5, 7) if len(pool.accounts) > 1 else random.randint(8, 12)
+                time.sleep(delay)
         else:
-            print("[-] No videos returned (check your sessionid or feed). Retrying in 5s...")
+            print("[-] No videos returned (check account sessions or feed). Retrying in 5s...")
             time.sleep(5)
         time.sleep(2)

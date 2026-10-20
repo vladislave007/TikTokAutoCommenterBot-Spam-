@@ -1,5 +1,6 @@
 # Credentials and sensitive settings
 config.json
+accounts.txt
 .env
 
 # Python cache & build files

@@ -18,6 +18,7 @@
 
 ## 🌟 Key Features
 
+- 🔄 **Multi-Account Carousel (Round-Robin)**: Add 2, 5, or 20+ accounts to `accounts.txt`. The bot automatically rotates through your accounts on each comment, multiplying throughput while allowing each account to rest, making rate limits virtually impossible. If an account ever gets a cooldown, the bot seamlessly continues on other accounts without stopping!
 - 🔥 **Real FYP (For You Page) Feed**: Automatically discovers fresh, active videos directly from TikTok's live algorithmic recommendation feed (`/aweme/v1/feed/`).
 - 🔔 **Targeted Push Notification Replies**: Instead of just posting top-level comments that get lost in the noise, the bot can directly reply to real user comments under videos. This triggers **instant mobile push notifications** on their phones!
 - 🔀 **3 Operating Modes**:
@@ -25,9 +26,9 @@
   - **Replies Only**: Focuses 100% on replying to users to maximize direct push notifications and profile visits.
   - **Video Comments Only**: Standard automated commenting directly on recommended videos.
 - 🛡️ **Anti-Spam & Rate-Limit Shield**:
-  - Dynamic randomized delays (5–8s) to mimic human browsing behavior.
-  - Intelligent action-block detector: automatically pauses with a 60-second cooldown when a rate limit is detected, then resumes smoothly without getting accounts banned.
-- 💾 **Session Caching**: Stores your `sessionid` locally in `config.json` so you can launch in 1 click without having to copy-paste cookies every time.
+  - Dynamic randomized delays to mimic human browsing behavior.
+  - Intelligent per-account cooldown: automatically pauses an account for 10 minutes if restricted, while instantly continuing with other accounts.
+- 💾 **Session Caching & accounts.txt**: Add sessions in `accounts.txt` or `config.json` for effortless 1-click startup without repetitive copy-pasting.
 - 🌐 **Multilingual Support**: Ready-to-use customizable comment databases for **EN**, **UA**, and **RU** in `comments.json`.
 - 🪟 **Windows 1-Click Launcher**: Includes `run.bat` for instant startup without dealing with the command line.
 
