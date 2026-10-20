@@ -1,77 +1,105 @@
-# 🚀 TikTok Auto Commenter & Reply Bot (Advanced Edition)
+<h1 align="center">
+  🚀 TikTok Auto Commenter & Reply Bot
+</h1>
 
 <p align="center">
   <img src="https://img.shields.io/badge/Python-3.8+-3776AB?style=flat-square&logo=python&logoColor=white" alt="python">
   <img src="https://img.shields.io/badge/Platform-Windows%20%7C%20Linux%20%7C%20macOS-blue?style=flat-square" alt="platform">
+  <img src="https://img.shields.io/badge/Signatures-Gorgon%20%7C%20Argus%20%7C%20Ladon-orange?style=flat-square" alt="signatures">
   <img src="https://img.shields.io/badge/Status-Working%202026-success?style=flat-square" alt="status">
+  <img src="https://img.shields.io/badge/License-MIT-green?style=flat-square" alt="license">
 </p>
 
-Продвинутый бот для автоматического комментирования и ответов на комментарии в **TikTok** через внутренний мобильный API с использованием криптографических подписей TikTok (`Gorgon`, `Argus`, `Ladon`, `Khronos`).
+<p align="center">
+  An advanced, automated TikTok marketing and interaction bot using TikTok's internal private mobile API. Powered by real-time signature generation (<b>Gorgon</b>, <b>Argus</b>, <b>Ladon</b>, <b>Khronos</b>), FYP feed discovery, and an intelligent reply mode that triggers <b>direct mobile push notifications</b> to users.
+</p>
 
 ---
 
-## ⭐ Основные возможности (Features)
+## 🌟 Key Features
 
-- 🔥 **Парсинг настоящей ленты рекомендаций (FYP)**: автоматически получает свежие активные видео из ленты `aweme/v1/feed/`.
-- 💬 **3 режима работы**:
-  - **Mixed (Рекомендовано)**: комбинирует ответы реальным людям и комментарии к видео.
-  - **Replies only**: отвечает на комментарии реальных пользователей под видео (вызывает **персональные Push-уведомления** на телефоны авторов комментариев!).
-  - **Video comments**: комментирует сами видеоролики.
-- 🛡️ **Защита от спам-фильтров TikTok**:
-  - Случайная естественная задержка между действиями.
-  - Автоматический умный кулдаун (60 секунд) при получении временного ограничения.
-- ⚡ **Автосохранение сессии**: введите `sessionid` один раз — бот сохранит его локально и при следующих запусках не будет требовать ввод заново.
-- 🌐 **Многоязычность**: поддержка наборов комментариев для **RU**, **UA**, **EN** в `comments.json`.
-- 🪟 **Удобный запуск на Windows**: готовый скрипт `run.bat` (запуск в 1 клик).
+- 🔥 **Real FYP (For You Page) Feed**: Automatically discovers fresh, active videos directly from TikTok's live algorithmic recommendation feed (`/aweme/v1/feed/`).
+- 🔔 **Targeted Push Notification Replies**: Instead of just posting top-level comments that get lost in the noise, the bot can directly reply to real user comments under videos. This triggers **instant mobile push notifications** on their phones!
+- 🔀 **3 Operating Modes**:
+  - **Mixed Mode (Recommended)**: Seamlessly blends comment replies (70%) with video-level comments (30%).
+  - **Replies Only**: Focuses 100% on replying to users to maximize direct push notifications and profile visits.
+  - **Video Comments Only**: Standard automated commenting directly on recommended videos.
+- 🛡️ **Anti-Spam & Rate-Limit Shield**:
+  - Dynamic randomized delays (5–8s) to mimic human browsing behavior.
+  - Intelligent action-block detector: automatically pauses with a 60-second cooldown when a rate limit is detected, then resumes smoothly without getting accounts banned.
+- 💾 **Session Caching**: Stores your `sessionid` locally in `config.json` so you can launch in 1 click without having to copy-paste cookies every time.
+- 🌐 **Multilingual Support**: Ready-to-use customizable comment databases for **EN**, **UA**, and **RU** in `comments.json`.
+- 🪟 **Windows 1-Click Launcher**: Includes `run.bat` for instant startup without dealing with the command line.
 
 ---
 
-## 📁 Структура проекта
+## 📁 Project Structure
 
 ```text
-├── main.py              # Основной исполняемый скрипт бота
-├── comments.json        # База ваших комментариев по языкам (RU, UA, EN)
-├── requirements.txt     # Необходимые зависимости Python
-├── run.bat              # Лаунчер для быстрого запуска на Windows
-├── MedoSigner/          # Модуль генерации мобильных подписей TikTok
-├── .gitignore           # Защита приватных данных (config.json)
-└── README.md            # Документация проекта
+├── main.py              # Main bot execution script
+├── comments.json        # Database of custom comments by language (EN, UA, RU)
+├── requirements.txt     # Python package dependencies
+├── run.bat              # 1-click Windows launcher
+├── MedoSigner/          # TikTok signature engine (Gorgon, Argus, Ladon, Khronos)
+├── .gitignore           # Keeps your credentials (config.json) safe & private
+└── README.md            # Project documentation
 ```
 
 ---
 
-## ⚙️ Установка и запуск
+## ⚙️ Installation & Usage
 
-### Способ 1: Быстрый запуск на Windows
-1. Убедитесь, что установлен [Python 3.8+](https://www.python.org/).
-2. Дважды кликните по файлу **`run.bat`** (он сам проверит и установит нужные библиотеки и запустит бота).
+### Option 1: Quick Start on Windows
+1. Make sure you have [Python 3.8+](https://www.python.org/) installed.
+2. Double-click **`run.bat`** (it will automatically install any missing dependencies and launch the bot).
 
-### Способ 2: Через терминал / Linux / macOS
+### Option 2: Linux / macOS / Terminal
 ```bash
-# 1. Установка зависимостей
+# 1. Clone the repository
+git clone https://github.com/vladislave007/TikTokAutoCommenterBot-Spam-.git
+cd TikTokAutoCommenterBot-Spam-
+
+# 2. Install dependencies
 pip install -r requirements.txt
 
-# 2. Запуск
+# 3. Run the bot
 python main.py
 ```
 
 ---
 
-## 🔑 Как получить TikTok `sessionid`:
+## 🔑 How to Get Your TikTok `sessionid`
 
-1. Откройте браузер на ПК (Chrome / Edge / Opera / Firefox) и войдите в свой аккаунт на [tiktok.com](https://www.tiktok.com).
-2. Нажмите **`F12`** (Инструменты разработчика).
-3. Перейдите во вкладку **Application** (в русской версии — **«Приложение»**) $\rightarrow$ слева откройте **Cookies** (Файлы cookie) $\rightarrow$ выберите `https://www.tiktok.com`.
-4. Найдите строку с именем **`sessionid`** и скопируйте её длинное значение (**Value**).
-5. Вставьте его в окно бота при первом запуске.
-
----
-
-## 📝 Настройка комментариев
-
-Откройте файл `comments.json` и добавьте/измените фразы на нужные вам. Для каждого видео или ответа бот случайным образом выбирает вариант из списка.
+1. Open your desktop browser (Chrome, Edge, Opera, or Firefox) and log into your account on [tiktok.com](https://www.tiktok.com).
+2. Press **`F12`** to open Developer Tools.
+3. Go to the **Application** tab (or **Storage** in Firefox).
+4. In the left sidebar, expand **Cookies** $\rightarrow$ click on `https://www.tiktok.com`.
+5. Find the cookie named **`sessionid`** and copy its **Value** (a long alphanumeric string).
+6. Paste it into the bot prompt on first run.
 
 ---
 
-## ⚠️ Отказ от ответственности (Disclaimer)
-*Данный проект создан исключительно в образовательных и ознакомительных целях. Соблюдайте правила платформы TikTok при использовании автоматизации.*
+## 📝 Customizing Comments
+
+Open `comments.json` to customize your comments. The bot randomly selects phrases from the chosen language category for every interaction, preventing repetitive patterns.
+
+```json
+{
+  "EN": [
+    "Check out my page for more info! ⭐",
+    "Details are pinned on my profile 👇",
+    "Check my bio for the full guide 🔥"
+  ]
+}
+```
+
+---
+
+## ⚠️ Disclaimer
+*This tool is created for educational and research purposes only. Automation of social media accounts must comply with the platform's Terms of Service. The author is not responsible for any misuse, account restrictions, or bans resulting from the use of this tool.*
+
+---
+
+## 🤝 Contributing & License
+Contributions, issues, and feature requests are welcome!  
+Distributed under the MIT License.
