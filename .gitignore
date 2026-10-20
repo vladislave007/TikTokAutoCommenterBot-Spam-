@@ -1,0 +1,15 @@
+# Credentials and sensitive settings
+config.json
+.env
+
+# Python cache & build files
+__pycache__/
+*.py[cod]
+*$py.class
+*.log
+
+# IDE & OS files
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
