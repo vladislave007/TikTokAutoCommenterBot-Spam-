@@ -2,12 +2,6 @@ import requests, random, binascii, os, uuid, time, re, json, sys
 from urllib.parse import urlencode
 from MedoSigner import Argus, Gorgon, md5, Ladon
 
-#+------------------------------------------------------+
-#| Author : L7N                                       |
-#| Telegram : t.me/PyL7N                     |
-#| Github : https://github.com/is-L7N  |
-#+------------------------------------------------------+
-
 class TikTok:
     def __init__(self, sessionid: str) -> None:
         self.sessionid = sessionid
