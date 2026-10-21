@@ -143,7 +143,8 @@ class TikTokClient:
                 "user_id": "",
                 "username": "",
                 "nickname": "",
-                "error": str(e)
+                "error": str(e),
+                "is_network_error": True
             }
 
     def get_feed(self, count: int = 25, min_comments: int = 15) -> list:
@@ -325,14 +326,21 @@ class TikTokClient:
                 status_msg = body.get("status_msg", "")
                 comment_obj = body.get("comment", {})
                 status_code = body.get("status_code", -1)
-                c_status = comment_obj.get("status")
-                cid = comment_obj.get("cid")
+                c_status = comment_obj.get("status") if isinstance(comment_obj, dict) else None
+                cid = comment_obj.get("cid") if isinstance(comment_obj, dict) else None
 
-                if status_msg == "Comment sent successfully" or status_code == 0:
+                # Require confirmed non-empty comment CID and successful status from TikTok
+                is_confirmed = (
+                    isinstance(comment_obj, dict)
+                    and bool(cid)
+                    and (status_msg == "Comment sent successfully" or status_code == 0)
+                )
+
+                if is_confirmed:
                     return {
                         "success": True,
                         "status": c_status,
-                        "cid": cid,
+                        "cid": str(cid),
                         "msg": status_msg or "Success",
                         "error_type": None
                     }
@@ -341,7 +349,7 @@ class TikTokClient:
                         "success": False,
                         "status": "spam",
                         "cid": None,
-                        "msg": status_msg,
+                        "msg": status_msg or "Rate limit / spam detected",
                         "error_type": "spam"
                     }
                 elif "login" in status_msg.lower() or "session" in status_msg.lower():
@@ -349,7 +357,7 @@ class TikTokClient:
                         "success": False,
                         "status": "auth",
                         "cid": None,
-                        "msg": status_msg,
+                        "msg": status_msg or "Authentication failed",
                         "error_type": "auth"
                     }
                 else:
@@ -357,8 +365,8 @@ class TikTokClient:
                         "success": False,
                         "status": "error",
                         "cid": None,
-                        "msg": status_msg or f"Error status_code={status_code}",
-                        "error_type": "api_error"
+                        "msg": status_msg or f"Unconfirmed comment structure (status_code={status_code})",
+                        "error_type": "unconfirmed"
                     }
             elif resp.status_code == 429:
                 return {

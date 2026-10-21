@@ -36,9 +36,14 @@ def main():
         sys.exit(1)
 
     pool = AccountPool(sessions)
+    pool.validate_all()
     pool.print_summary()
 
-    # 2. Optional validation and warm-up
+    if not pool.active_accounts:
+        logger.critical("Ни один аккаунт не прошел проверку авторизации. Проверьте sessionid в accounts.txt!")
+        sys.exit(1)
+
+    # 2. Optional warm-up
     warm_choice = input("Запустить быстрый прогрев аккаунтов (лайки/просмотр ленты для роста доверия)? (y/n) [По умолчанию: y] : ").strip().lower()
     if warm_choice != "n":
         print("\n[*] Запускаю прогрев аккаунтов (имитация живого пользователя)...")

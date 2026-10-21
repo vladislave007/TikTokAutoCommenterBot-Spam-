@@ -18,31 +18,41 @@
 
 ## 🌟 Key Features
 
-- 🔄 **Multi-Account Carousel (Round-Robin)**: Add 2, 5, or 20+ accounts to `accounts.txt`. The bot automatically rotates through your accounts on each comment, multiplying throughput while allowing each account to rest, making rate limits virtually impossible. If an account ever gets a cooldown, the bot seamlessly continues on other accounts without stopping!
-- 🔥 **Real FYP (For You Page) Feed**: Automatically discovers fresh, active videos directly from TikTok's live algorithmic recommendation feed (`/aweme/v1/feed/`).
-- 🔔 **Targeted Push Notification Replies**: Instead of just posting top-level comments that get lost in the noise, the bot can directly reply to real user comments under videos. This triggers **instant mobile push notifications** on their phones!
+- 🔄 **Multi-Account Carousel (Round-Robin)**: Add 2, 5, or 20+ accounts to `accounts.txt`. The bot automatically rotates through your accounts on each comment, multiplying throughput while allowing each account to rest. If an account ever hits a rate-limit cooldown, the bot seamlessly continues on other accounts without stopping!
+- 🛡️ **Anti-Shadowban Spintax Engine**: Generates 50,000+ unique, human-like comment permutations using recursive `{option1|option2}` syntax and dynamic `@{user}` injection. Completely eliminates spam trigger words (`bio`, `link`, etc.) to ensure comments pass TikTok's AI filter and stay **publicly visible to all users**!
+- ⚡ **Automated Account Warm-Up (Trust Karma)**: Simulates natural human behavior before commenting by browsing the live recommendation feed and liking videos (`commit/item/digg/`) to boost account trust score.
+- 🔍 **Smart Session Validation**: Checks all accounts upon startup against TikTok authentication. Accurately identifies active accounts and skips dead/expired sessions without crashing.
+- 🔔 **Targeted Push Notification Replies**: Instead of just posting top-level comments that get lost in the noise, the bot directly replies to users under viral videos, triggering **instant mobile push notifications** on their phones!
 - 🔀 **3 Operating Modes**:
-  - **Mixed Mode (Recommended)**: Seamlessly blends comment replies (70%) with video-level comments (30%).
+  - **Mixed Mode (Recommended)**: Seamlessly blends comment replies with video-level comments.
   - **Replies Only**: Focuses 100% on replying to users to maximize direct push notifications and profile visits.
-  - **Video Comments Only**: Standard automated commenting directly on recommended videos.
-- 🛡️ **Anti-Spam & Rate-Limit Shield**:
-  - Dynamic randomized delays to mimic human browsing behavior.
-  - Intelligent per-account cooldown: automatically pauses an account for 10 minutes if restricted, while instantly continuing with other accounts.
-- 💾 **Session Caching & accounts.txt**: Add sessions in `accounts.txt` or `config.json` for effortless 1-click startup without repetitive copy-pasting.
-- 🌐 **Multilingual Support**: Ready-to-use customizable comment databases for **EN**, **UA**, and **RU** in `comments.json`.
-- 🪟 **Windows 1-Click Launcher**: Includes `run.bat` for instant startup without dealing with the command line.
+  - **Video Comments Only**: Comments directly on high-engagement recommended videos.
+- 📊 **Robust Error Handling & Logging**:
+  - Requires confirmed comment ID (`cid`) and response verification before marking comments as sent.
+  - Centralized logging in console and `bot.log` with detailed diagnostics.
+- 🧪 **Comprehensive Unit Test Suite**: Pre-packaged automated test suite covering cryptographic signatures (Gorgon, Argus, Ladon), Spintax resolution, carousel logic, and configuration loading.
 
 ---
 
 ## 📁 Project Structure
 
 ```text
-├── main.py              # Main bot execution script
-├── comments.json        # Database of custom comments by language (EN, UA, RU)
+├── main.py              # Main entrypoint and carousel loop orchestrator
+├── client.py            # TikTokClient network layer, mobile signing, and API interactions
+├── pool.py              # Account, AccountPool, and carousel state management
+├── config.py            # Accounts & Spintax configuration loading and fallback
+├── logger.py            # Centralized logging (console + bot.log)
+├── spintax.py           # Recursive Spintax template engine and user mention injector
+├── comments.json        # High-engagement, clean Spintax comment templates (RU, UA, EN)
+├── tests/               # Automated unit test suite (Gorgon, Spintax, Pool, Config)
+│   ├── test_gorgon.py   # Signature calculation and Gorgon.hash unit tests
+│   ├── test_spintax.py  # Spintax resolution and username injection tests
+│   ├── test_pool.py     # Round-robin carousel and cooldown tests
+│   └── test_config.py   # File loader and fallback configuration tests
 ├── requirements.txt     # Python package dependencies
 ├── run.bat              # 1-click Windows launcher
-├── MedoSigner/          # TikTok signature engine (Gorgon, Argus, Ladon, Khronos)
-├── .gitignore           # Keeps your credentials (config.json) safe & private
+├── MedoSigner/          # Cryptographic signature algorithms (Gorgon, Argus, Ladon, Khronos)
+├── .gitignore           # Keeps your credentials (config.json, accounts.txt) safe & private
 └── README.md            # Project documentation
 ```
 
@@ -52,7 +62,7 @@
 
 ### Option 1: Quick Start on Windows
 1. Make sure you have [Python 3.8+](https://www.python.org/) installed.
-2. Double-click **`run.bat`** (it will automatically install any missing dependencies and launch the bot).
+2. Double-click **`run.bat`** (it will automatically install any missing dependencies, run the bot, and guide you).
 
 ### Option 2: Linux / macOS / Terminal
 ```bash
@@ -63,8 +73,27 @@ cd TikTokAutoCommenterBot-Spam-
 # 2. Install dependencies
 pip install -r requirements.txt
 
-# 3. Run the bot
+# 3. Run automated tests (optional, verify setup)
+python -m unittest discover tests
+
+# 4. Run the bot
 python main.py
+```
+
+---
+
+## 🧪 Running Automated Tests
+
+The project includes unit tests covering cryptographic signatures, Spintax parsing, configuration loading, and account carousel logic:
+
+```bash
+python -m unittest discover tests
+```
+
+Expected output:
+```text
+Ran 22 tests in 0.05s
+OK
 ```
 
 ---
@@ -76,23 +105,28 @@ python main.py
 3. Go to the **Application** tab (or **Storage** in Firefox).
 4. In the left sidebar, expand **Cookies** $\rightarrow$ click on `https://www.tiktok.com`.
 5. Find the cookie named **`sessionid`** and copy its **Value** (a long alphanumeric string).
-6. Paste it into the bot prompt on first run.
+6. Add it to `accounts.txt` (one per line) or paste it into the bot prompt on first run.
 
 ---
 
-## 📝 Customizing Comments
+## 📝 Customizing Spintax Comments
 
-Open `comments.json` to customize your comments. The bot randomly selects phrases from the chosen language category for every interaction, preventing repetitive patterns.
+Open `comments.json` to customize your comment templates. The bot uses **Spintax** format `{synonym1|synonym2|...}` and automatically injects the target user's nickname via `@{user}`:
 
 ```json
 {
+  "RU": [
+    "{хаха|ору|жесть|блин} {в точку|жиза|согласен|реально так} {😂|😭|🔥}",
+    "@{user} {слушай|бро|друг}, {а ты реально так думаешь?|тоже это заметил?} 🤔"
+  ],
   "EN": [
-    "Check out my page for more info! ⭐",
-    "Details are pinned on my profile 👇",
-    "Check my bio for the full guide 🔥"
+    "{haha|lmao|omg|bro} {this is so true|literally me|on point} {😂|💀|🔥}",
+    "@{user} {honestly|wait}, {did you notice that too?|facts right there} 🤔"
   ]
 }
 ```
+
+Every response generated is unique, preventing duplicate spam triggers and keeping comments publicly visible!
 
 ---
 
@@ -104,3 +138,4 @@ Open `comments.json` to customize your comments. The bot randomly selects phrase
 ## 🤝 Contributing & License
 Contributions, issues, and feature requests are welcome!  
 Distributed under the MIT License.
+

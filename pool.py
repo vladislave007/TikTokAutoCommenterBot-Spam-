@@ -20,6 +20,7 @@ class Account:
         self.cooldown_until = 0
         self.state = AccountState.READY
         self.invalid_reason = ""
+        self.username = ""
         
         # Stats tracking
         self.sent_count = 0
@@ -87,25 +88,34 @@ class AccountPool:
         return shortest_acc
 
     def validate_all(self) -> None:
-        """Validates all accounts in the pool on startup and marks dead sessions."""
+        """
+        Validates all accounts in the pool against TikTok authentication.
+        Gracefully handles service unreachability without prematurely disabling accounts.
+        """
         logger.info(f"Validating {len(self.accounts)} accounts against TikTok authentication...")
         for acc in self.accounts:
             res = acc.client.validate_session()
             if res.get("valid"):
-                username = res.get("username") or "User"
-                logger.info(f"  • {acc.label}: Valid (@{username})")
+                acc.username = res.get("username") or "User"
+                logger.info(f"  • {acc.label}: Valid (@{acc.username})")
+            elif res.get("is_network_error"):
+                # Network or TikTok service temporarily unreachable: keep account active
+                err_msg = res.get("error", "Service unreachable")
+                logger.warning(f"  • {acc.label}: Network warning ({err_msg}). Account remains active.")
             else:
-                err = res.get("error", "Unknown validation failure")
+                # Definitive authentication rejection
+                err = res.get("error", "Authentication failed")
                 acc.mark_invalid(err)
 
     def print_summary(self) -> None:
         print(f"\n[+] Loaded {len(self.accounts)} TikTok Account(s) into Carousel:")
         for acc in self.accounts:
+            user_tag = f" (@{acc.username})" if acc.username else ""
             if acc.state == AccountState.READY:
                 status_str = "Ready"
             elif acc.state == AccountState.COOLDOWN:
                 status_str = f"Cooldown ({acc.cooldown_remaining}s)"
             else:
                 status_str = f"Disabled ({acc.invalid_reason or acc.state.value})"
-            print(f"    • {acc.label} - Status: {status_str}")
+            print(f"    • {acc.label}{user_tag} - Status: {status_str}")
         print("")
