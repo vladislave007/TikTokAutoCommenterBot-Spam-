@@ -1,19 +1,28 @@
-# Credentials and sensitive settings
+# Sensitive user credentials and sessions
 config.json
 accounts.txt
 bought_accounts.txt
 my_sessions.txt
-*.png
 .env
 
-# Python cache & build files
+# Images and temporary artifacts
+*.png
+*.jpg
+*.jpeg
+*.log
+
+# Python cache
 __pycache__/
 *.py[cod]
 *$py.class
-*.log
+*.spec
+build/
+dist/
+*.egg-info/
 
-# IDE & OS files
-.vscode/
-.idea/
-.DS_Store
-Thumbs.db
+# Local test scratch scripts
+test_*.py
+check_*.py
+get_sessions.py
+login_helper.bat
+for_github/
