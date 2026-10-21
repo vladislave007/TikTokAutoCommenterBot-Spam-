@@ -250,6 +250,42 @@ class TestTikTokClient(unittest.TestCase):
         self.assertEqual(res["error_type"], "network")
         self.assertIn("timeout", res["msg"].lower())
 
+    # ==========================================
+    # Warm-up, Follow, and Browsing Tests
+    # ==========================================
+    @patch("requests.post")
+    def test_follow_user_success(self, mock_post):
+        """Verifies follow_user sends signed request and handles follow_status=1."""
+        mock_resp = MagicMock()
+        mock_resp.status_code = 200
+        mock_resp.json.return_value = {
+            "status_code": 0,
+            "follow_status": 1
+        }
+        mock_post.return_value = mock_resp
+
+        ok = self.client.follow_user("691234567890")
+        self.assertTrue(ok)
+
+    @patch("client.TikTokClient.like_video", return_value=True)
+    @patch("client.TikTokClient.follow_user", return_value=True)
+    @patch("client.TikTokClient.get_feed_items")
+    def test_warm_up_execution(self, mock_get_items, mock_follow, mock_like):
+        """Verifies warm_up scrolls items, watches, and executes likes/follows."""
+        mock_get_items.return_value = [
+            {"id": "7001", "author_id": "1001", "author_name": "user1"},
+            {"id": "7002", "author_id": "1002", "author_name": "user2"},
+            {"id": "7003", "author_id": "1003", "author_name": "user3"},
+        ]
+
+        with patch("time.sleep", return_value=None):
+            with patch("random.random", return_value=0.1):  # Guarantees triggers
+                stats = self.client.warm_up(min_videos=3, max_videos=3)
+
+        self.assertEqual(stats["watched"], 3)
+        self.assertEqual(stats["liked"], 3)
+        self.assertEqual(stats["followed"], 3)
+
 
 if __name__ == "__main__":
     unittest.main()

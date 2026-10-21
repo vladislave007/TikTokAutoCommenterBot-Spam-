@@ -44,13 +44,15 @@ def main():
         sys.exit(1)
 
     # 2. Optional warm-up
-    warm_choice = input("Запустить быстрый прогрев аккаунтов (лайки/просмотр ленты для роста доверия)? (y/n) [По умолчанию: y] : ").strip().lower()
+    warm_choice = input("Запустить прогрев аккаунтов (скролл ленты, лайки и подписки)? (y/n) [По умолчанию: y] : ").strip().lower()
     if warm_choice != "n":
-        print("\n[*] Запускаю прогрев аккаунтов (имитация живого пользователя)...")
+        print("\n[*] Запускаю органический прогрев аккаунтов (скролл ленты + просмотры + лайки + подписки)...")
         for acc in pool.active_accounts:
-            ok = acc.client.warm_up()
-            res_str = "Прогрет успешно (лайк + лента) 👍" if ok else "Лента проверена"
-            print(f"    • {acc.label}: {res_str}")
+            stats = acc.client.warm_up()
+            watched = stats.get("watched", 0)
+            liked = stats.get("liked", 0)
+            followed = stats.get("followed", 0)
+            print(f"    • {acc.label}: просмотрено {watched} видео | ❤️ лайков: {liked} | ➕ подписок: {followed}")
             time.sleep(1)
         print("[+] Прогрев завершен! Аккаунты готовы к работе.\n")
 

@@ -475,14 +475,121 @@ class TikTokClient:
             logger.debug(f"Like request failed: {e}")
             return False
 
-    def warm_up(self) -> bool:
-        """Simulates organic user activity: fetches feed, pauses, and likes a random video."""
+    def follow_user(self, user_id: str) -> bool:
+        """Sends a follow request to a creator via POST /aweme/v1/commit/follow/user/."""
+        if not user_id:
+            return False
+        url = f"{self.base_url}/aweme/v1/commit/follow/user/"
+        params = self.params.copy()
+        params.update({
+            'user_id': str(user_id),
+            'type': '1',
+            'channel_id': '3',
+            'from': '19',
+            'from_pre': '13',
+            'version_name': '38.6.2'
+        })
+        headers = self.headers.copy()
+        sig = self._sign(urlencode(params), payload="")
+        headers.update({
+            'x-argus': sig["x-argus"],
+            'x-gorgon': sig["x-gorgon"],
+            'x-khronos': sig["x-khronos"],
+            'x-ladon': sig["x-ladon"],
+        })
+
         try:
-            feed = self.get_feed(count=6, min_comments=0)
-            if feed:
-                chosen_vid = random.choice(feed)
-                time.sleep(random.randint(2, 4))
-                return self.like_video(chosen_vid)
+            resp = requests.post(url, params=params, headers=headers, timeout=self.timeout)
+            if resp.status_code == 200:
+                data = resp.json()
+                return data.get("follow_status") in (1, 2) or data.get("status_code") == 0
+            return False
+        except requests.exceptions.RequestException as e:
+            logger.debug(f"Follow request failed: {e}")
+            return False
+
+    def get_feed_items(self, count: int = 10) -> list:
+        """
+        Fetches live FYP recommendations with video details and creator user_ids.
+        Returns list of dicts: [{'id': str, 'author_id': str, 'author_name': str}]
+        """
+        try:
+            url = f"{self.base_url}/aweme/v1/feed/"
+            params = self.params.copy()
+            params.update({
+                'count': str(count),
+                'type': '0',
+                'version_name': '38.6.2'
+            })
+            headers = self.headers.copy()
+            sig = self._sign(urlencode(params), payload="")
+            headers.update({
+                'x-argus': sig["x-argus"],
+                'x-gorgon': sig["x-gorgon"],
+                'x-khronos': sig["x-khronos"],
+                'x-ladon': sig["x-ladon"],
+            })
+
+            resp = requests.get(url, params=params, headers=headers, timeout=self.timeout)
+            if resp.status_code == 200:
+                data = resp.json()
+                items = data.get('aweme_list', [])
+                results = []
+                for item in items:
+                    vid = str(item.get('aweme_id', ''))
+                    if not vid:
+                        continue
+                    author = item.get('author', {})
+                    author_id = str(author.get('uid') or author.get('user_id') or "")
+                    author_name = str(author.get('unique_id') or author.get('nickname') or "")
+                    results.append({
+                        "id": vid,
+                        "author_id": author_id,
+                        "author_name": author_name
+                    })
+                return results
+        except Exception as e:
+            logger.debug(f"get_feed_items failed: {e}")
+        return []
+
+    def warm_up(self, min_videos: int = 3, max_videos: int = 5) -> dict:
+        """
+        Simulates natural human browsing behaviour on TikTok:
+        - Scrolls through recommendation feed (FYP)
+        - Pauses to simulate viewing/watching videos (2.0s - 4.5s per video)
+        - Likes random videos (approx 40% probability)
+        - Follows creators (approx 20% probability)
+        Returns dict with statistics: {"watched": int, "liked": int, "followed": int}
+        """
+        stats = {"watched": 0, "liked": 0, "followed": 0}
+        try:
+            items = self.get_feed_items(count=10)
+            if not items:
+                feed_ids = self.get_feed(count=6, min_comments=0)
+                items = [{"id": vid, "author_id": "", "author_name": ""} for vid in feed_ids]
+
+            target_count = min(len(items), random.randint(min_videos, max_videos)) if items else 0
+            for i in range(target_count):
+                item = items[i]
+                vid = item["id"]
+                author_id = item.get("author_id")
+
+                # 1. Simulate human watch / scroll delay
+                watch_time = random.uniform(2.0, 4.0)
+                time.sleep(watch_time)
+                stats["watched"] += 1
+
+                # 2. Like action (~40% chance)
+                if random.random() < 0.40:
+                    if self.like_video(vid):
+                        stats["liked"] += 1
+
+                # 3. Follow action (~20% chance, if author_id is known)
+                if author_id and random.random() < 0.20:
+                    if self.follow_user(author_id):
+                        stats["followed"] += 1
+
         except Exception as e:
             logger.debug(f"Warm-up exception: {e}")
-        return False
+
+        return stats
