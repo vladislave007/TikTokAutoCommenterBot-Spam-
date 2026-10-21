@@ -42,13 +42,53 @@ class TikTok:
             ),
         }
 
-    def get_video(self) -> list:
+    def warm_up(self) -> bool:
+        """Simulate organic human behavior: fetch feed, watch a video, and like it."""
+        try:
+            url = f"{self.base_url}/aweme/v1/feed/"
+            params = self.params.copy()
+            params.update({'count': '6', 'type': '0', 'version_name': '38.6.2'})
+            headers = self.headers.copy()
+            sig = self._sign(urlencode(params), payload="")
+            headers.update({
+                'x-argus': sig["x-argus"],
+                'x-gorgon': sig["x-gorgon"],
+                'x-khronos': sig["x-khronos"],
+                'x-ladon': sig["x-ladon"],
+            })
+            r = requests.get(url, params=params, headers=headers, timeout=10)
+            if r.status_code == 200:
+                items = r.json().get('aweme_list', [])
+                if items:
+                    v_item = random.choice(items)
+                    v_id = str(v_item.get('aweme_id'))
+                    # Simulate human watch time
+                    time.sleep(random.randint(2, 4))
+                    # Like the video to build account karma
+                    digg_url = f"{self.base_url}/aweme/v1/commit/item/digg/"
+                    digg_params = self.params.copy()
+                    digg_params.update({'aweme_id': v_id, 'type': '1', 'version_name': '38.6.2'})
+                    digg_sig = self._sign(urlencode(digg_params), payload="")
+                    digg_headers = self.headers.copy()
+                    digg_headers.update({
+                        'x-argus': digg_sig["x-argus"],
+                        'x-gorgon': digg_sig["x-gorgon"],
+                        'x-khronos': digg_sig["x-khronos"],
+                        'x-ladon': digg_sig["x-ladon"],
+                    })
+                    requests.post(digg_url, params=digg_params, headers=digg_headers, timeout=6)
+                    return True
+        except Exception:
+            pass
+        return False
+
+    def get_video(self, min_comments: int = 15) -> list:
         # 1. Main FYP (For You) feed
         try:
             url = f"{self.base_url}/aweme/v1/feed/"
             params = self.params.copy()
             params.update({
-                'count': '20',
+                'count': '25',
                 'type': '0',
                 'version_name': '38.6.2'
             })
@@ -63,9 +103,29 @@ class TikTok:
             response = requests.get(url, params=params, headers=headers, timeout=10)
             if response.status_code == 200:
                 data = response.json()
-                aweme_ids = [str(item.get('aweme_id')) for item in data.get('aweme_list', []) if item.get('aweme_id')]
-                if aweme_ids:
-                    return list(set(aweme_ids))
+                videos = []
+                for item in data.get('aweme_list', []):
+                    aweme_id = str(item.get('aweme_id', ''))
+                    if not aweme_id:
+                        continue
+                    stats = item.get('statistics', {})
+                    c_count = int(stats.get('comment_count', 0))
+                    digg_count = int(stats.get('digg_count', 0))
+                    if c_count >= min_comments:
+                        videos.append({
+                            'id': aweme_id,
+                            'comment_count': c_count,
+                            'digg_count': digg_count
+                        })
+                # Sort by comments count descending so we target viral videos first
+                videos.sort(key=lambda x: x['comment_count'], reverse=True)
+                if videos:
+                    return [v['id'] for v in videos]
+                
+                # Fallback to any available videos if feed has low comments
+                fallback_ids = [str(item['aweme_id']) for item in data.get('aweme_list', []) if item.get('aweme_id')]
+                if fallback_ids:
+                    return list(dict.fromkeys(fallback_ids))
         except Exception:
             pass
 
@@ -88,7 +148,7 @@ class TikTok:
             })
             response = requests.get(url, params=params, headers=headers, timeout=10).text
             aweme_ids = re.findall(r'"aweme_id":"(\d+)"', response)
-            return list(set(aweme_ids))
+            return list(dict.fromkeys(aweme_ids))
         except Exception:
             return []
 
@@ -141,7 +201,7 @@ class TikTok:
                 break
         return all_comments
 
-    def send(self, comment: str, aweme_id: int, reply_id: str = None) -> bool:
+    def send(self, comment: str, aweme_id: int, reply_id: str = None) -> dict:
         url = f"{self.base_url}/lite/v2/comment/publication/"
         params = self.params.copy()
         headers = self.headers.copy()
@@ -165,18 +225,49 @@ class TikTok:
         })
 
         try:
-            response = requests.post(url, params=params, data=data, headers=headers).json()
+            response = requests.post(url, params=params, data=data, headers=headers, timeout=10).json()
             status_msg = response.get("status_msg", "")
+            comment_obj = response.get("comment", {})
+            status = comment_obj.get("status")
+            cid = comment_obj.get("cid")
+
             if status_msg == "Comment sent successfully":
-                return True
+                return {"success": True, "status": status, "cid": cid, "msg": status_msg}
             elif "too fast" in status_msg or "Spam" in status_msg:
-                return "Spam"
+                return {"success": False, "status": "spam", "msg": status_msg}
             elif status_msg:
-                return status_msg
+                return {"success": False, "status": "error", "msg": status_msg}
             else:
-                return False            
+                return {"success": False, "status": "error", "msg": "No response"}
         except Exception as e:
-            return str(e)
+            return {"success": False, "status": "error", "msg": str(e)}
+
+
+def spin(template: str, target_user: str = None) -> str:
+    """
+    Recursively resolves {option1|option2|...} Spintax syntax
+    and organically injects @{target_user} into the comment.
+    Produces thousands of unique, natural human-like variations.
+    """
+    pattern = re.compile(r'\{([^{}]+)\}')
+    text = template
+    for _ in range(5):
+        if not pattern.search(text):
+            break
+        text = pattern.sub(lambda m: random.choice(m.group(1).split('|')), text)
+
+    if target_user:
+        clean_user = re.sub(r'[@\s]+', '', target_user).strip()
+        if clean_user:
+            text = text.replace("@{user}", f"@{clean_user}").replace("{user}", clean_user)
+        else:
+            text = text.replace("@{user}", "").replace("{user}", "")
+    else:
+        text = text.replace("@{user}", "").replace("{user}", "")
+
+    # Clean whitespace
+    return re.sub(r'\s+', ' ', text).strip()
+
 
 class Account:
     def __init__(self, sessionid: str, index: int) -> None:
@@ -296,7 +387,14 @@ if __name__ == "__main__":
         sys.exit(1)
 
     pool = AccountPool(sessions)
-    pool.print_summary()
+    warm_choice = input("Запустить быстрый прогрев аккаунтов (лайки/просмотр ленты для роста доверия)? (y/n) [По умолчанию: y] : ").strip().lower()
+    if warm_choice != "n":
+        print("\n[*] Запускаю прогрев аккаунтов (имитация живого пользователя)...")
+        for acc in pool.accounts:
+            ok = acc.tiktok.warm_up()
+            print(f"    • {acc.label}: {'Прогрет успешно (лайк + лента) 👍' if ok else 'Лента проверена'}")
+            time.sleep(1)
+        print("[+] Прогрев завершен! Аккаунты готовы к работе.\n")
 
     if not os.path.exists("comments.json"):
         with open("comments.json", "w", encoding="utf-8") as f:
@@ -336,66 +434,79 @@ if __name__ == "__main__":
     max_replies_per_video = 30
     if mode in ["1", "2"]:
         print("\nСколько ответов оставлять под одним популярным видео?")
-        print("  (Рекомендуется: 20-50 ответов, аккаунты сменяются по очереди)")
-        r_in = input("Количество ответов на видео [По умолчанию: 30] : ").strip()
+        print("  (Рекомендуется: 15-30 ответов, аккаунты сменяются по очереди)")
+        r_in = input("Количество ответов на видео [По умолчанию: 25] : ").strip()
         if r_in.isdigit() and int(r_in) > 0:
             max_replies_per_video = min(100, int(r_in))
+        else:
+            max_replies_per_video = 25
 
     mode_names = {
         "1": f"Mixed (до {max_replies_per_video} ответов + коммент под видео)",
         "2": f"Replies Only (до {max_replies_per_video} ответов на видео)",
         "3": "Video Comments Only"
     }
-    print(f"\n[+] Загружено {len(comments)} фраз для [{lang}]. Режим: {mode_names[mode]}")
+    print(f"\n[+] Загружено {len(comments)} Spintax-шаблонов для [{lang}]. Режим: {mode_names[mode]}")
     print(f"[*] Лимит ответов на видео: {max_replies_per_video} | Карусель активна ({len(pool.accounts)} акк).")
+    print("[*] Безопасные интервалы: 18-30 сек между ответами (защита от теневого бана).")
     print("[*] Нажмите Ctrl+C в любой момент для остановки.\n")
 
     while True:
         acc_for_feed = pool.get_next_available()
-        videos = acc_for_feed.tiktok.get_video()
+        videos = acc_for_feed.tiktok.get_video(min_comments=10)
         if videos:
-            print(f"\n[*] Найдено {len(videos)} видео в ленте рекомендаций...")
+            print(f"\n[*] Найдено {len(videos)} активных видео в ленте рекомендаций...")
             for v_idx, vid in enumerate(videos, 1):
                 if mode in ["1", "2"]:
-                    # Fetch multiple comments for this video
                     worker_init = pool.get_next_available()
                     existing_comments = worker_init.tiktok.get_comments(vid, max_count=max_replies_per_video)
                     
                     if existing_comments:
                         print(f"\n[*] [Видео {v_idx}/{len(videos)}] (ID: {vid}): Найдено {len(existing_comments)} комментариев. Запускаю карусель ответов...")
                         for c_idx, target_c in enumerate(existing_comments, 1):
-                            comment = random.choice(comments)
+                            raw_template = random.choice(comments)
+                            comment = spin(raw_template, target_c.get('user', ''))
                             worker = pool.get_next_available()
                             
-                            send = worker.tiktok.send(comment, vid, reply_id=target_c['cid'])
-                            # Safe ascii label for terminal
+                            res = worker.tiktok.send(comment, vid, reply_id=target_c['cid'])
                             try:
                                 user_label = target_c['user'][:15]
                             except Exception:
                                 user_label = "User"
                                 
-                            if send is True:
+                            if res.get("success"):
                                 worker.sent_count += 1
-                                print(f"[+] [{worker.label}] Ответил @{user_label}: '{comment}' ({c_idx}/{len(existing_comments)}) [Всего у акк: {worker.sent_count}]")
-                            elif send == "Spam":
-                                print(f"\n[!] [{worker.label}] Лимит спама от TikTok! Отдых 10 мин...")
-                                worker.trigger_cooldown(600)
+                                c_status = res.get("status")
+                                if c_status == 1:
+                                    status_badge = "[✓ ВИДЕН ВСЕМ]"
+                                elif c_status == 2:
+                                    status_badge = "[~ Теневая проверка]"
+                                else:
+                                    status_badge = "[✓ Отправлен]"
+                                print(f"[+] [{worker.label}] {status_badge} Ответил @{user_label}: '{comment}' ({c_idx}/{len(existing_comments)}) [Всего: {worker.sent_count}]")
+                            elif res.get("status") == "spam":
+                                print(f"\n[!] [{worker.label}] Лимит спама от TikTok! Отдых 15 мин...")
+                                worker.trigger_cooldown(900)
                                 if any(a.is_available for a in pool.accounts):
                                     print(f"[*] Мгновенно переключаюсь на следующий аккаунт...")
                                 continue
                             else:
                                 worker.fail_count += 1
-                                err_detail = f" [TikTok: {send}]" if isinstance(send, str) else ""
-                                print(f"[-] [{worker.label}] Ошибка ответа @{user_label}{err_detail}")
+                                err_msg = res.get("msg", "Unknown")
+                                print(f"[-] [{worker.label}] Ошибка ответа @{user_label}: {err_msg}")
                             
-                            delay = random.randint(5, 7) if len(pool.accounts) > 1 else random.randint(8, 12)
+                            delay = random.randint(18, 28) if len(pool.accounts) > 1 else random.randint(25, 40)
                             time.sleep(delay)
                             
                         # If in mixed mode, optionally leave 1 direct comment on video
-                        if mode == "1" and random.random() < 0.5:
+                        if mode == "1" and random.random() < 0.4:
                             worker = pool.get_next_available()
-                            comment = random.choice(comments)
-                            worker.tiktok.send(comment, vid)
+                            comment = spin(random.choice(comments), None)
+                            res = worker.tiktok.send(comment, vid)
+                            if res.get("success"):
+                                worker.sent_count += 1
+                                print(f"[+] [{worker.label}] Комментарий к видео {vid}: '{comment}'")
+                            time.sleep(random.randint(15, 25))
                     else:
                         if mode == "2":
                             print(f"[-] [Видео {v_idx}/{len(videos)}] Нет комментариев для ответов, перехожу дальше...")
@@ -403,28 +514,37 @@ if __name__ == "__main__":
                         else:
                             # Mode 1 fallback to video comment
                             worker = pool.get_next_available()
-                            comment = random.choice(comments)
-                            worker.tiktok.send(comment, vid)
-                            time.sleep(random.randint(5, 7))
+                            comment = spin(random.choice(comments), None)
+                            res = worker.tiktok.send(comment, vid)
+                            if res.get("success"):
+                                worker.sent_count += 1
+                                print(f"[+] [{worker.label}] Комментарий к видео {vid}: '{comment}'")
+                            time.sleep(random.randint(18, 28))
                 else:
                     # Mode 3: Video Comments Only
-                    comment = random.choice(comments)
+                    comment = spin(random.choice(comments), None)
                     worker = pool.get_next_available()
-                    send = worker.tiktok.send(comment, vid)
-                    if send is True:
+                    res = worker.tiktok.send(comment, vid)
+                    if res.get("success"):
                         worker.sent_count += 1
                         print(f"[+] [{worker.label}] Прокомментировал видео {vid}: '{comment}' (Всего: {worker.sent_count})")
-                    elif send == "Spam":
-                        print(f"\n[!] [{worker.label}] Лимит спама! Отдых 10 мин...")
-                        worker.trigger_cooldown(600)
+                    elif res.get("status") == "spam":
+                        print(f"\n[!] [{worker.label}] Лимит спама! Отдых 15 мин...")
+                        worker.trigger_cooldown(900)
                         continue
                     else:
                         worker.fail_count += 1
-                        print(f"[-] [{worker.label}] Ошибка коммента на {vid}")
+                        print(f"[-] [{worker.label}] Ошибка коммента на {vid}: {res.get('msg')}")
                     
-                    delay = random.randint(5, 7) if len(pool.accounts) > 1 else random.randint(8, 12)
+                    delay = random.randint(18, 28) if len(pool.accounts) > 1 else random.randint(25, 40)
                     time.sleep(delay)
+                
+                # Human pause between videos (simulating watching next video)
+                pause = random.randint(20, 35)
+                print(f"[*] Пауза просмотра ленты: {pause}с перед следующим видео...")
+                time.sleep(pause)
         else:
-            print("[-] No videos returned (check account sessions or feed). Retrying in 5s...")
-            time.sleep(5)
-        time.sleep(2)
+            print("[-] No videos returned (check account sessions or feed). Retrying in 10s...")
+            time.sleep(10)
+        time.sleep(3)
+
