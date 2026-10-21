@@ -178,7 +178,7 @@ class TestAccountPool(unittest.TestCase):
             self.assertEqual(acc.state, AccountState.READY)
 
     def test_register_success_warmup_consecutive_failures_triggers_protective_cooldown(self):
-        """Verifies that 2 consecutive warm_up failures place the account on protective cooldown."""
+        """Verifies that 2 consecutive warm_up failures place the account on protective cooldown with immediate re-check offset."""
         acc = self.pool.accounts[0]
         acc.sent_since_warmup = 14
         with unittest.mock.patch.object(acc.client, "warm_up") as mock_warm:
@@ -194,12 +194,29 @@ class TestAccountPool(unittest.TestCase):
             acc.sent_since_warmup = 14
             acc.register_success(is_public=True, threshold=15)
 
-            # 2nd failure -> protective cooldown (180-300s), counters reset
-            self.assertEqual(acc.warmup_fails, 0)
-            self.assertEqual(acc.sent_since_warmup, 0)
+            # 2nd failure -> protective cooldown (180-300s), sent_since_warmup is 14 (re-checks immediately after 1 comment)
+            self.assertEqual(acc.warmup_fails, 2)
+            self.assertEqual(acc.sent_since_warmup, 14)
             self.assertEqual(acc.state, AccountState.COOLDOWN)
             self.assertGreaterEqual(acc.cooldown_remaining, 179)
             self.assertLessEqual(acc.cooldown_remaining, 301)
+
+    def test_register_success_warmup_third_failure_triggers_long_cooldown(self):
+        """Verifies that 3 consecutive failures trigger a long 15-minute protective cooldown."""
+        acc = self.pool.accounts[0]
+        acc.warmup_fails = 2
+        acc.sent_since_warmup = 14
+        with unittest.mock.patch.object(acc.client, "warm_up") as mock_warm:
+            mock_warm.side_effect = RuntimeError("TikTok API connection reset")
+
+            acc.register_success(is_public=True, threshold=15)
+
+            # 3rd failure -> 900s cooldown, counters fully reset
+            self.assertEqual(acc.warmup_fails, 0)
+            self.assertEqual(acc.sent_since_warmup, 0)
+            self.assertEqual(acc.state, AccountState.COOLDOWN)
+            self.assertGreaterEqual(acc.cooldown_remaining, 899)
+            self.assertLessEqual(acc.cooldown_remaining, 901)
 
     def test_register_success_counters_incremented_strictly_once(self):
         """Verifies that each call to register_success increments metrics strictly once."""

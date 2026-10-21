@@ -95,16 +95,26 @@ class Account:
                 return True
             else:
                 self.warmup_fails += 1
-                if self.warmup_fails >= 2:
+                if self.warmup_fails >= 3:
                     logger.warning(
-                        f"[{self.label}] Повторный сбой прогрева ({self.warmup_fails} подряд). "
-                        "Запуск защитного отдыха во избежание спама без прогрева."
+                        f"[{self.label}] Стойкий сбой прогрева ({self.warmup_fails} подряд после отдыха). "
+                        "Отправка на длительный защитный отдых 15 мин."
                     )
                     self.sent_since_warmup = 0
                     self.warmup_fails = 0
+                    self.trigger_cooldown(900, reason="Длительный сбой прогрева (3 ошибки подряд)")
+                elif self.warmup_fails == 2:
+                    # 2-я ошибка: защитный отдых 3-5 мин, но после отдыха повторный прогрев запускается сразу через 1 коммент
+                    retry_offset = 1
+                    self.sent_since_warmup = max(0, threshold - retry_offset)
                     rest_seconds = random.randint(180, 300)
+                    logger.warning(
+                        f"[{self.label}] Повторный сбой прогрева (2 подряд). "
+                        f"Защитный отдых {rest_seconds}с, повторная проверка прогрева сразу после выхода из отдыха."
+                    )
                     self.trigger_cooldown(rest_seconds, reason="Защитный отдых после неудачного прогрева")
                 else:
+                    # 1-я ошибка: мягкий откат на 3 комментария без кулдауна
                     retry_offset = 3 if threshold >= 5 else 1
                     self.sent_since_warmup = max(0, threshold - retry_offset)
                     logger.warning(
