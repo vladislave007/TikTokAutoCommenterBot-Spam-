@@ -150,28 +150,56 @@ class TestAccountPool(unittest.TestCase):
         selected = self.pool.get_next_available()
         self.assertIsNone(selected)
 
-    def test_register_success_warmup_exception_does_not_reset_counter_or_cooldown(self):
-        """Verifies that if warm_up raises an exception, counter is not reset and cooldown is aborted."""
+    def test_register_success_warmup_exception_soft_backoff(self):
+        """Verifies that 1st warm_up failure applies a 3-comment soft backoff without entering cooldown."""
         acc = self.pool.accounts[0]
+        acc.sent_since_warmup = 14  # Next comment triggers threshold 15
         with unittest.mock.patch.object(acc.client, "warm_up") as mock_warm:
             mock_warm.side_effect = RuntimeError("TikTok API connection reset")
 
-            triggered = acc.register_success(is_public=True, threshold=1)
+            triggered = acc.register_success(is_public=True, threshold=15)
             self.assertFalse(triggered)
-            self.assertEqual(acc.sent_since_warmup, 1)
+            self.assertEqual(acc.warmup_fails, 1)
+            self.assertEqual(acc.sent_since_warmup, 12)  # 15 - 3
             self.assertEqual(acc.state, AccountState.READY)
             self.assertEqual(acc.cooldown_remaining, 0)
 
-    def test_register_success_warmup_zero_watched_aborts_cooldown(self):
-        """Verifies that if warm_up returns 0 watched videos, counter is not reset and cooldown is aborted."""
+    def test_register_success_warmup_zero_watched_soft_backoff(self):
+        """Verifies that zero watched videos on 1st attempt applies soft backoff without cooldown."""
         acc = self.pool.accounts[0]
+        acc.sent_since_warmup = 14
         with unittest.mock.patch.object(acc.client, "warm_up") as mock_warm:
             mock_warm.return_value = {"watched": 0, "liked": 0, "followed": 0}
 
-            triggered = acc.register_success(is_public=True, threshold=1)
+            triggered = acc.register_success(is_public=True, threshold=15)
             self.assertFalse(triggered)
-            self.assertEqual(acc.sent_since_warmup, 1)
+            self.assertEqual(acc.warmup_fails, 1)
+            self.assertEqual(acc.sent_since_warmup, 12)  # 15 - 3
             self.assertEqual(acc.state, AccountState.READY)
+
+    def test_register_success_warmup_consecutive_failures_triggers_protective_cooldown(self):
+        """Verifies that 2 consecutive warm_up failures place the account on protective cooldown."""
+        acc = self.pool.accounts[0]
+        acc.sent_since_warmup = 14
+        with unittest.mock.patch.object(acc.client, "warm_up") as mock_warm:
+            mock_warm.side_effect = RuntimeError("TikTok API connection reset")
+
+            # 1st failure -> soft backoff to 12
+            acc.register_success(is_public=True, threshold=15)
+            self.assertEqual(acc.warmup_fails, 1)
+            self.assertEqual(acc.sent_since_warmup, 12)
+            self.assertEqual(acc.state, AccountState.READY)
+
+            # Fast forward to 14, then trigger 2nd failure
+            acc.sent_since_warmup = 14
+            acc.register_success(is_public=True, threshold=15)
+
+            # 2nd failure -> protective cooldown (180-300s), counters reset
+            self.assertEqual(acc.warmup_fails, 0)
+            self.assertEqual(acc.sent_since_warmup, 0)
+            self.assertEqual(acc.state, AccountState.COOLDOWN)
+            self.assertGreaterEqual(acc.cooldown_remaining, 179)
+            self.assertLessEqual(acc.cooldown_remaining, 301)
 
     def test_register_success_counters_incremented_strictly_once(self):
         """Verifies that each call to register_success increments metrics strictly once."""

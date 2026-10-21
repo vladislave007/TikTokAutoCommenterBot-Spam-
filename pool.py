@@ -29,6 +29,7 @@ class Account:
         self.public_count = 0
         self.shadow_count = 0
         self.sent_since_warmup = 0
+        self.warmup_fails = 0
 
     @property
     def is_available(self) -> bool:
@@ -57,8 +58,11 @@ class Account:
         """
         Registers a successfully posted comment, tracks metrics, and triggers
         periodic organic micro-warmup (FYP scroll + like) and a natural rest cooldown.
-        If warm_up fails or raises an exception, the counter is NOT reset and
-        the rest cooldown is NOT triggered.
+        If warm_up fails:
+        - 1st failure: sets sent_since_warmup back by 3 comments (soft buffer) so
+          the account does not retry warm_up on every consecutive comment.
+        - 2nd consecutive failure: places account on protective cooldown (180-300s)
+          to avoid posting without organic warmup, resetting counter to 0.
         Returns True if phase maintenance was successfully completed.
         """
         self.sent_count += 1
@@ -85,11 +89,28 @@ class Account:
 
             if warm_success:
                 self.sent_since_warmup = 0
+                self.warmup_fails = 0
                 rest_seconds = random.randint(300, 480)
                 self.trigger_cooldown(rest_seconds, reason="Плановый органический отдых (режим 8-12ч)")
                 return True
             else:
-                logger.warning(f"[{self.label}] Прогрев не удался. Счётчик активности не сброшен, отдых отменён.")
+                self.warmup_fails += 1
+                if self.warmup_fails >= 2:
+                    logger.warning(
+                        f"[{self.label}] Повторный сбой прогрева ({self.warmup_fails} подряд). "
+                        "Запуск защитного отдыха во избежание спама без прогрева."
+                    )
+                    self.sent_since_warmup = 0
+                    self.warmup_fails = 0
+                    rest_seconds = random.randint(180, 300)
+                    self.trigger_cooldown(rest_seconds, reason="Защитный отдых после неудачного прогрева")
+                else:
+                    retry_offset = 3 if threshold >= 5 else 1
+                    self.sent_since_warmup = max(0, threshold - retry_offset)
+                    logger.warning(
+                        f"[{self.label}] Прогрев не удался (сбой #{self.warmup_fails}). Повтор через {retry_offset} коммент(а) "
+                        f"(счётчик: {self.sent_since_warmup}/{threshold}), отдых отменён."
+                    )
                 return False
         return False
 
