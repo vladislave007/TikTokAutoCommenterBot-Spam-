@@ -1,6 +1,9 @@
 # Credentials and sensitive settings
 config.json
 accounts.txt
+bought_accounts.txt
+my_sessions.txt
+*.png
 .env
 
 # Python cache & build files
