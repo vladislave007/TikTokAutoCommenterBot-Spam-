@@ -44,9 +44,13 @@ def main():
         sys.exit(1)
 
     # 2. Optional warm-up
-    warm_choice = input("Запустить прогрев аккаунтов (скролл ленты, лайки и подписки)? (y/n) [По умолчанию: y] : ").strip().lower()
+    print("=" * 60)
+    print("ШАГ 1: Органический прогрев (повышает доверие TikTok перед работой)")
+    print("  [y] (Да)  - проскроллить ленту, поставить случайные лайки и подписки")
+    print("  [n] (Нет) - пропустить прогрев и сразу перейти к комментированию")
+    warm_choice = input("Запустить прогрев? (y/n) [Нажмите Enter для 'y']: ").strip().lower()
     if warm_choice != "n":
-        print("\n[*] Запускаю органический прогрев аккаунтов (скролл ленты + просмотры + лайки + подписки)...")
+        print("\n[*] Запускаю органический прогрев аккаунтов (скролл + лайки + подписки)...")
         for acc in pool.active_accounts:
             stats = acc.client.warm_up()
             watched = stats.get("watched", 0)
@@ -61,7 +65,10 @@ def main():
     available_langs = " / ".join(comments_db.keys())
     default_lang = "RU" if "RU" in comments_db else ("UA" if "UA" in comments_db else list(comments_db.keys())[0])
     
-    lang = input(f"Choose comment language ({available_langs}) [Default: {default_lang}] : ").strip().upper()
+    print("=" * 60)
+    print("ШАГ 2: Выбор языка комментариев")
+    print(f"  Доступные базы из comments.json: {available_langs}")
+    lang = input(f"Выберите язык [Нажмите Enter для '{default_lang}']: ").strip().upper()
     if not lang:
         lang = default_lang
     templates = comments_db.get(lang, [])
@@ -71,26 +78,31 @@ def main():
         templates = ["{хаха|ору|жесть} {в точку|жиза|согласен} 😂"]
 
     # 4. Select Mode
-    print("\nSelect Commenting Mode:")
-    print("  [1] Mixed (Replies to people + Video comments) - RECOMMENDED")
-    print("  [2] Only replies to people (Push notification to user)")
-    print("  [3] Only video comments")
-    mode = input("\nChoose mode [Default: 1] : ").strip()
+    print("=" * 60)
+    print("ШАГ 3: Выбор режима работы")
+    print("  [1] Смешанный (Ответы людям + коммент к видео) — РЕКОМЕНДУЕТСЯ")
+    print("      (Бот отвечает людям в комментариях и оставляет 1 коммент под видео)")
+    print("  [2] Только ответы людям (Максимум пуш-уведомлений на телефоны)")
+    print("      (Бот отвечает только авторам существующих комментариев)")
+    print("  [3] Только комментарии к видео")
+    print("      (Классический постинг прямо под роликами из ленты)")
+    mode = input("Выберите режим (1, 2 или 3) [Нажмите Enter для '1']: ").strip()
     if mode not in ["1", "2", "3"]:
         mode = "1"
 
     max_replies_per_video = 25
     if mode in ["1", "2"]:
-        print("\nСколько ответов оставлять под одним популярным видео?")
-        print("  (Рекомендуется: 15-30 ответов, аккаунты сменяются по очереди)")
-        r_in = input("Количество ответов на видео [По умолчанию: 25] : ").strip()
+        print("\nСколько ответов отправлять под одним популярным видео?")
+        print("  • Бот сменяет аккаунты по очереди (карусель), не перегружая один профиль.")
+        print("  • Рекомендуется: 20-30 ответов.")
+        r_in = input("Количество ответов [Нажмите Enter для 25]: ").strip()
         if r_in.isdigit() and int(r_in) > 0:
             max_replies_per_video = min(100, int(r_in))
 
     mode_names = {
-        "1": f"Mixed (до {max_replies_per_video} ответов + коммент под видео)",
-        "2": f"Replies Only (до {max_replies_per_video} ответов на видео)",
-        "3": "Video Comments Only"
+        "1": f"Смешанный (до {max_replies_per_video} ответов + коммент под видео)",
+        "2": f"Только ответы (до {max_replies_per_video} пушей на видео)",
+        "3": "Только комменты к видео"
     }
 
     print(f"\n[+] Загружено {len(templates)} Spintax-шаблонов для [{lang}]. Режим: {mode_names[mode]}")
