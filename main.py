@@ -3,9 +3,7 @@ from urllib.parse import urlencode
 from MedoSigner import Argus, Gorgon, md5, Ladon
 
 #+------------------------------------------------------+
-#| Author : L7N                                       |
-#| Telegram : t.me/PyL7N                     |
-#| Github : https://github.com/is-L7N  |
+#| TikTok Multi-Account Carousel & Auto Commenter      |
 #+------------------------------------------------------+
 
 class TikTok:
@@ -293,19 +291,9 @@ if __name__ == "__main__":
         except Exception:
             pass
 
-    info = [
-        "Author : L7N 🇮🇶",
-        "Telegram : t.me/PyL7N",
-        "Github : https://github.com/is-L7N"
-    ]
-
-    width = max(len(line) for line in info) + 4
-    border = "+" + "-" * (width - 2) + "+"
-    
-    print(border)
-    for line in info:
-        print("| " + line.ljust(width - 3) + " |") 
-    print(border)
+    print("=" * 60)
+    print("     TikTok Multi-Account Carousel & Auto-Commenter")
+    print("=" * 60)
     
     sessions = load_accounts()
     if not sessions:
