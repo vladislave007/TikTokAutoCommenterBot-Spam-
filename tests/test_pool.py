@@ -101,6 +101,45 @@ class TestAccountPool(unittest.TestCase):
             self.assertFalse(single_pool.accounts[0].is_available)
             self.assertEqual(len(single_pool.active_accounts), 0)
 
+    def test_register_success_increments_counts(self):
+        """Verifies that register_success correctly increments comment and visibility metrics."""
+        acc = self.pool.accounts[0]
+        acc.register_success(is_public=True, is_shadow=False, threshold=50)
+        self.assertEqual(acc.sent_count, 1)
+        self.assertEqual(acc.public_count, 1)
+        self.assertEqual(acc.shadow_count, 0)
+        self.assertEqual(acc.sent_since_warmup, 1)
+
+        acc.register_success(is_public=False, is_shadow=True, threshold=50)
+        self.assertEqual(acc.sent_count, 2)
+        self.assertEqual(acc.public_count, 1)
+        self.assertEqual(acc.shadow_count, 1)
+        self.assertEqual(acc.sent_since_warmup, 2)
+
+    def test_register_success_triggers_phase_maintenance(self):
+        """Verifies that reaching threshold triggers organic re-warmup and rest cooldown."""
+        acc = self.pool.accounts[0]
+        with unittest.mock.patch.object(acc.client, "warm_up") as mock_warm:
+            mock_warm.return_value = {"watched": 3, "liked": 1, "followed": 0}
+            
+            # Send up to threshold - 1
+            triggered1 = acc.register_success(is_public=True, threshold=3)
+            self.assertFalse(triggered1)
+            self.assertEqual(acc.state, AccountState.READY)
+            mock_warm.assert_not_called()
+
+            triggered2 = acc.register_success(is_public=True, threshold=3)
+            self.assertFalse(triggered2)
+            mock_warm.assert_not_called()
+
+            # 3rd comment reaches threshold of 3 -> triggers phase maintenance
+            triggered3 = acc.register_success(is_public=True, threshold=3)
+            self.assertTrue(triggered3)
+            mock_warm.assert_called_once()
+            self.assertEqual(acc.sent_since_warmup, 0)
+            self.assertEqual(acc.state, AccountState.COOLDOWN)
+            self.assertGreaterEqual(acc.cooldown_remaining, 299)
+
 
 if __name__ == "__main__":
     unittest.main()

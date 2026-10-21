@@ -6,7 +6,7 @@
   <a href="https://github.com/vladislave007/TikTokAutoCommenterBot-Spam-/actions"><img src="https://github.com/vladislave007/TikTokAutoCommenterBot-Spam-/actions/workflows/tests.yml/badge.svg" alt="CI Tests"></a>
   <img src="https://img.shields.io/badge/Python-3.8+-3776AB?style=flat-square&logo=python&logoColor=white" alt="python">
   <img src="https://img.shields.io/badge/Platform-Windows%20%7C%20Linux%20%7C%20macOS-blue?style=flat-square" alt="platform">
-  <img src="https://img.shields.io/badge/Tests-42%20passed-brightgreen?style=flat-square" alt="tests">
+  <img src="https://img.shields.io/badge/Tests-44%20passed-brightgreen?style=flat-square" alt="tests">
   <img src="https://img.shields.io/badge/Signatures-Gorgon%20%7C%20Argus%20%7C%20Ladon-orange?style=flat-square" alt="signatures">
   <img src="https://img.shields.io/badge/Status-Working%202026-success?style=flat-square" alt="status">
   <img src="https://img.shields.io/badge/License-MIT-green?style=flat-square" alt="license">
@@ -23,6 +23,7 @@
 - 🔄 **Multi-Account Carousel (Round-Robin)**: Add 2, 5, or 20+ accounts to `accounts.txt`. The bot automatically rotates through your accounts on each comment, multiplying throughput while allowing each account to rest. If an account ever hits a rate-limit cooldown, the bot seamlessly continues on other accounts without stopping!
 - 🛡️ **Anti-Shadowban Spintax Engine**: Generates 50,000+ unique, human-like comment permutations using recursive `{option1|option2}` syntax and dynamic `@{user}` injection. Completely eliminates spam trigger words (`bio`, `link`, etc.) to ensure comments pass TikTok's AI filter and stay **publicly visible to all users**!
 - ⚡ **Multi-Action Organic Warm-Up**: Simulates authentic human browsing behavior on TikTok before commenting: scrolls through the recommendation feed, pauses 2–4s per video, likes random content (`commit/item/digg/`), and follows creators (`commit/follow/user/`) to rapidly boost account Trust Karma and prevent shadow-bans.
+- ⏱️ **8-12+ Hour Continuous Run Engine**: Built-in phased re-warmup and natural staggered rest (5-8 min cooldown every 15 comments per account) plus adaptive human viewing pauses (50-80s every 5 videos) designed for safe, unattended overnight or multi-hour operations.
 - 🔍 **Smart Session Validation**: Checks all accounts upon startup against TikTok authentication. Accurately distinguishes between confirmed auth failures (401/403/expired) and transient issues (429 rate limit, 5xx server errors, network drops) so accounts are never disabled accidentally.
 - 🔔 **Targeted Push Notification Replies**: Instead of just posting top-level comments that get lost in the noise, the bot directly replies to users under viral videos, triggering **instant mobile push notifications** on their phones!
 - 🔀 **3 Operating Modes**:
@@ -32,7 +33,7 @@
 - 📊 **Robust Verification & Visibility Auditing**:
   - Requires confirmed comment ID (`cid`) and verifies TikTok internal status (`status == 1` for public visibility vs `status == 2` for shadow moderation).
   - Centralized logging in console and `bot.log` with detailed diagnostics.
-- 🧪 **Comprehensive Automated Test Suite & CI**: 42 automated unit tests executed via GitHub Actions CI covering mobile signing (Gorgon, Argus, Ladon), multi-action warmup, session validation edge cases, comment status confirmation, Spintax resolution, carousel rotation, and configuration fallback.
+- 🧪 **Comprehensive Automated Test Suite & CI**: 44 automated unit tests executed via GitHub Actions CI covering mobile signing (Gorgon, Argus, Ladon), multi-action warmup, phase maintenance, session validation edge cases, comment status confirmation, Spintax resolution, carousel rotation, and configuration fallback.
 
 ---
 
@@ -43,14 +44,14 @@
 │   └── tests.yml        # GitHub Actions CI workflow (Python 3.10, 3.11, 3.12)
 ├── main.py              # Main entrypoint and carousel loop orchestrator
 ├── client.py            # TikTokClient network layer, mobile signing, and API interactions
-├── pool.py              # Account, AccountPool, and carousel state management
+├── pool.py              # Account, AccountPool, phase maintenance, and carousel state management
 ├── config.py            # Accounts & Spintax configuration loading and fallback
 ├── logger.py            # Centralized logging (console + bot.log)
 ├── spintax.py           # Recursive Spintax template engine and user mention injector
 ├── comments.json        # High-engagement, clean Spintax comment templates (RU, UA, EN)
-├── tests/               # Automated unit test suite (42 unit tests)
+├── tests/               # Automated unit test suite (44 unit tests)
 │   ├── test_client.py   # Comment verification, warm-up, and session validation tests
-│   ├── test_pool.py     # Round-robin carousel, cooldown, and error handling tests
+│   ├── test_pool.py     # Round-robin carousel, phase maintenance, cooldown, and error handling tests
 │   ├── test_gorgon.py   # Signature calculation and Gorgon.hash unit tests
 │   ├── test_spintax.py  # Spintax resolution and username injection tests
 │   └── test_config.py   # File loader and fallback configuration tests
@@ -89,7 +90,7 @@ python main.py
 
 ## 🧪 Running Automated Tests
 
-The project includes 42 unit tests covering cryptographic signatures, session validation, real-world comment verification, multi-action warmup, Spintax parsing, configuration loading, and account carousel logic:
+The project includes 44 unit tests covering cryptographic signatures, session validation, real-world comment verification, multi-action warmup, Spintax parsing, configuration loading, and account carousel logic:
 
 ```bash
 python -m unittest discover tests -v
@@ -97,7 +98,7 @@ python -m unittest discover tests -v
 
 Expected output:
 ```text
-Ran 42 tests in 0.17s
+Ran 44 tests in 0.17s
 OK
 ```
 

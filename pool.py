@@ -1,3 +1,4 @@
+import random
 import time
 from enum import Enum
 from client import TikTokClient
@@ -27,6 +28,7 @@ class Account:
         self.fail_count = 0
         self.public_count = 0
         self.shadow_count = 0
+        self.sent_since_warmup = 0
 
     @property
     def is_available(self) -> bool:
@@ -50,6 +52,35 @@ class Account:
         self.state = AccountState.INVALID
         self.invalid_reason = reason
         logger.error(f"[{self.label}] Marked as INVALID: {reason}")
+
+    def register_success(self, is_public: bool = False, is_shadow: bool = False, threshold: int = 15) -> bool:
+        """
+        Registers a successfully posted comment, tracks metrics, and triggers
+        periodic organic micro-warmup (FYP scroll + like) and a natural rest cooldown
+        (5-8 minutes) to ensure safe, undetected 8-12+ hour autonomous runs.
+        Returns True if phase maintenance was initiated.
+        """
+        self.sent_count += 1
+        self.sent_since_warmup += 1
+        if is_public:
+            self.public_count += 1
+        elif is_shadow:
+            self.shadow_count += 1
+
+        if self.sent_since_warmup >= threshold:
+            logger.info(f"[{self.label}] Лимит непрерывной активности ({self.sent_since_warmup} комментов). Запуск планового микро-прогрева...")
+            try:
+                stats = self.client.warm_up(min_videos=2, max_videos=3)
+                w, l = stats.get("watched", 0), stats.get("liked", 0)
+                logger.info(f"[{self.label}] Микро-прогрев завершен: {w} видео, {l} лайков.")
+            except Exception as e:
+                logger.debug(f"Phase warm-up exception: {e}")
+
+            self.sent_since_warmup = 0
+            rest_seconds = random.randint(300, 480)
+            self.trigger_cooldown(rest_seconds, reason="Плановый органический отдых (режим 8-12ч)")
+            return True
+        return False
 
 
 class AccountPool:

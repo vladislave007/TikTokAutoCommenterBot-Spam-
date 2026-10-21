@@ -141,17 +141,13 @@ def main():
                             user_label = str(target_c.get('user', 'User'))[:15]
 
                             if res.get("success"):
-                                worker.sent_count += 1
                                 c_status = res.get("status")
-                                if c_status == 1:
-                                    worker.public_count += 1
-                                    badge = "[✓ ВИДЕН ВСЕМ]"
-                                elif c_status == 2:
-                                    worker.shadow_count += 1
-                                    badge = "[~ Теневая проверка]"
-                                else:
-                                    badge = "[✓ Отправлен]"
-                                print(f"[+] [{worker.label}] {badge} Ответил @{user_label}: '{comment}' ({c_idx}/{len(existing_comments)}) [Всего: {worker.sent_count}]")
+                                is_pub = (c_status == 1)
+                                is_shd = (c_status == 2)
+                                badge = "[✓ ВИДЕН ВСЕМ]" if is_pub else ("[~ Теневая проверка]" if is_shd else "[✓ Отправлен]")
+                                print(f"[+] [{worker.label}] {badge} Ответил @{user_label}: '{comment}' ({c_idx}/{len(existing_comments)}) [Всего: {worker.sent_count + 1}]")
+                                if worker.register_success(is_public=is_pub, is_shadow=is_shd):
+                                    print(f"[*] [{worker.label}] Плановый микро-прогрев выполнен! Аккаунт отдыхает 5-8 мин, карусель переключается дальше...")
 
                             elif res.get("error_type") == "spam":
                                 print(f"\n[!] [{worker.label}] Лимит спама от TikTok! Отдых 15 мин...")
@@ -180,17 +176,13 @@ def main():
                                 comment = spin(random.choice(templates), None)
                                 res = worker.client.post_comment(int(vid), comment)
                                 if res.get("success"):
-                                    worker.sent_count += 1
                                     c_status = res.get("status")
-                                    if c_status == 1:
-                                        worker.public_count += 1
-                                        badge = "[✓ ВИДЕН ВСЕМ]"
-                                    elif c_status == 2:
-                                        worker.shadow_count += 1
-                                        badge = "[~ Теневая проверка]"
-                                    else:
-                                        badge = "[✓ Отправлен]"
+                                    is_pub = (c_status == 1)
+                                    is_shd = (c_status == 2)
+                                    badge = "[✓ ВИДЕН ВСЕМ]" if is_pub else ("[~ Теневая проверка]" if is_shd else "[✓ Отправлен]")
                                     print(f"[+] [{worker.label}] {badge} Комментарий к видео {vid}: '{comment}'")
+                                    if worker.register_success(is_public=is_pub, is_shadow=is_shd):
+                                        print(f"[*] [{worker.label}] Плановый микро-прогрев выполнен! Аккаунт отдыхает 5-8 мин, карусель переключается дальше...")
                                 time.sleep(random.randint(15, 25))
                     else:
                         if mode == "2":
@@ -203,17 +195,13 @@ def main():
                                 comment = spin(random.choice(templates), None)
                                 res = worker.client.post_comment(int(vid), comment)
                                 if res.get("success"):
-                                    worker.sent_count += 1
                                     c_status = res.get("status")
-                                    if c_status == 1:
-                                        worker.public_count += 1
-                                        badge = "[✓ ВИДЕН ВСЕМ]"
-                                    elif c_status == 2:
-                                        worker.shadow_count += 1
-                                        badge = "[~ Теневая проверка]"
-                                    else:
-                                        badge = "[✓ Отправлен]"
+                                    is_pub = (c_status == 1)
+                                    is_shd = (c_status == 2)
+                                    badge = "[✓ ВИДЕН ВСЕМ]" if is_pub else ("[~ Теневая проверка]" if is_shd else "[✓ Отправлен]")
                                     print(f"[+] [{worker.label}] {badge} Комментарий к видео {vid}: '{comment}'")
+                                    if worker.register_success(is_public=is_pub, is_shadow=is_shd):
+                                        print(f"[*] [{worker.label}] Плановый микро-прогрев выполнен! Аккаунт отдыхает 5-8 мин, карусель переключается дальше...")
                                 time.sleep(random.randint(18, 28))
                 else:
                     # Mode 3: Video Comments Only
@@ -224,17 +212,13 @@ def main():
                     res = worker.client.post_comment(int(vid), comment)
 
                     if res.get("success"):
-                        worker.sent_count += 1
                         c_status = res.get("status")
-                        if c_status == 1:
-                            worker.public_count += 1
-                            badge = "[✓ ВИДЕН ВСЕМ]"
-                        elif c_status == 2:
-                            worker.shadow_count += 1
-                            badge = "[~ Теневая проверка]"
-                        else:
-                            badge = "[✓ Отправлен]"
-                        print(f"[+] [{worker.label}] {badge} Прокомментировал видео {vid}: '{comment}' (Всего: {worker.sent_count})")
+                        is_pub = (c_status == 1)
+                        is_shd = (c_status == 2)
+                        badge = "[✓ ВИДЕН ВСЕМ]" if is_pub else ("[~ Теневая проверка]" if is_shd else "[✓ Отправлен]")
+                        print(f"[+] [{worker.label}] {badge} Прокомментировал видео {vid}: '{comment}' (Всего: {worker.sent_count + 1})")
+                        if worker.register_success(is_public=is_pub, is_shadow=is_shd):
+                            print(f"[*] [{worker.label}] Плановый микро-прогрев выполнен! Аккаунт отдыхает 5-8 мин, карусель переключается дальше...")
                     elif res.get("error_type") == "spam":
                         print(f"\n[!] [{worker.label}] Лимит спама! Отдых 15 мин...")
                         worker.trigger_cooldown(900, reason="Spam limit")
@@ -250,8 +234,12 @@ def main():
                     time.sleep(delay)
 
                 # Human pause between videos (simulating watching next video)
-                pause = random.randint(20, 35)
-                print(f"[*] Пауза просмотра ленты: {pause}с перед следующим видео...")
+                if v_idx % 5 == 0:
+                    pause = random.randint(50, 80)
+                    print(f"[*] Глубокая пауза просмотра ленты: {pause}с (защита от спам-фильтров для режима 8-12ч)...")
+                else:
+                    pause = random.randint(20, 35)
+                    print(f"[*] Пауза просмотра ленты: {pause}с перед следующим видео...")
                 time.sleep(pause)
         else:
             logger.warning("No videos returned from feed. Retrying in 10s...")
