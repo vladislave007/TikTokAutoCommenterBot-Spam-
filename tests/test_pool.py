@@ -48,6 +48,59 @@ class TestAccountPool(unittest.TestCase):
         seen_indices = {self.pool.get_next_available().index for _ in range(6)}
         self.assertEqual(seen_indices, {1, 3})
 
+    def test_validate_all_valid_session(self):
+        """Verifies that a valid session sets username and keeps account READY."""
+        with unittest.mock.patch.object(self.pool.accounts[0].client, "validate_session") as mock_val:
+            mock_val.return_value = {
+                "valid": True,
+                "username": "tiktok_pro",
+                "is_auth_error": False,
+                "is_temporary": False
+            }
+            # Only validate account 0
+            single_pool = AccountPool(["sess_mock_valid"])
+            single_pool.accounts[0].client.validate_session = mock_val
+            single_pool.validate_all()
+
+            self.assertEqual(single_pool.accounts[0].state, AccountState.READY)
+            self.assertEqual(single_pool.accounts[0].username, "tiktok_pro")
+            self.assertTrue(single_pool.accounts[0].is_available)
+
+    def test_validate_all_temporary_error_keeps_account_active(self):
+        """Verifies that 429, 5xx, or network errors DO NOT mark the account INVALID."""
+        with unittest.mock.patch.object(self.pool.accounts[0].client, "validate_session") as mock_val:
+            mock_val.return_value = {
+                "valid": False,
+                "error": "HTTP 429 Rate Limited",
+                "is_auth_error": False,
+                "is_temporary": True
+            }
+            single_pool = AccountPool(["sess_mock_temp"])
+            single_pool.accounts[0].client.validate_session = mock_val
+            single_pool.validate_all()
+
+            # Account MUST remain READY, not disabled
+            self.assertEqual(single_pool.accounts[0].state, AccountState.READY)
+            self.assertTrue(single_pool.accounts[0].is_available)
+            self.assertEqual(len(single_pool.active_accounts), 1)
+
+    def test_validate_all_auth_error_marks_invalid(self):
+        """Verifies that confirmed 401/403 or expired session marks the account INVALID."""
+        with unittest.mock.patch.object(self.pool.accounts[0].client, "validate_session") as mock_val:
+            mock_val.return_value = {
+                "valid": False,
+                "error": "HTTP 401 Unauthorized",
+                "is_auth_error": True,
+                "is_temporary": False
+            }
+            single_pool = AccountPool(["sess_mock_auth_fail"])
+            single_pool.accounts[0].client.validate_session = mock_val
+            single_pool.validate_all()
+
+            self.assertEqual(single_pool.accounts[0].state, AccountState.INVALID)
+            self.assertFalse(single_pool.accounts[0].is_available)
+            self.assertEqual(len(single_pool.active_accounts), 0)
+
 
 if __name__ == "__main__":
     unittest.main()

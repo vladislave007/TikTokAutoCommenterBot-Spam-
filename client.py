@@ -110,7 +110,9 @@ class TikTokClient:
                         "user_id": user_id,
                         "username": username,
                         "nickname": nickname,
-                        "error": ""
+                        "error": "",
+                        "is_auth_error": False,
+                        "is_temporary": False
                     }
                 else:
                     return {
@@ -118,7 +120,9 @@ class TikTokClient:
                         "user_id": "",
                         "username": "",
                         "nickname": "",
-                        "error": "Session returned empty user_id (expired/invalid)"
+                        "error": "Session returned empty user_id (expired/invalid)",
+                        "is_auth_error": True,
+                        "is_temporary": False
                     }
             elif resp.status_code in (401, 403):
                 return {
@@ -126,7 +130,29 @@ class TikTokClient:
                     "user_id": "",
                     "username": "",
                     "nickname": "",
-                    "error": f"HTTP {resp.status_code} Unauthorized"
+                    "error": f"HTTP {resp.status_code} Unauthorized",
+                    "is_auth_error": True,
+                    "is_temporary": False
+                }
+            elif resp.status_code == 429:
+                return {
+                    "valid": False,
+                    "user_id": "",
+                    "username": "",
+                    "nickname": "",
+                    "error": "HTTP 429 Rate Limited",
+                    "is_auth_error": False,
+                    "is_temporary": True
+                }
+            elif resp.status_code >= 500:
+                return {
+                    "valid": False,
+                    "user_id": "",
+                    "username": "",
+                    "nickname": "",
+                    "error": f"HTTP {resp.status_code} Server Error",
+                    "is_auth_error": False,
+                    "is_temporary": True
                 }
             else:
                 return {
@@ -134,7 +160,9 @@ class TikTokClient:
                     "user_id": "",
                     "username": "",
                     "nickname": "",
-                    "error": f"Unexpected HTTP {resp.status_code}"
+                    "error": f"Unexpected HTTP {resp.status_code}",
+                    "is_auth_error": False,
+                    "is_temporary": True
                 }
         except requests.exceptions.RequestException as e:
             logger.warning(f"Network error during session validation: {e}")
@@ -144,6 +172,8 @@ class TikTokClient:
                 "username": "",
                 "nickname": "",
                 "error": str(e),
+                "is_auth_error": False,
+                "is_temporary": True,
                 "is_network_error": True
             }
 
@@ -337,8 +367,12 @@ class TikTokClient:
                 )
 
                 if is_confirmed:
+                    is_public = (c_status == 1)
+                    is_shadow_filtered = (c_status == 2)
                     return {
                         "success": True,
+                        "is_public": is_public,
+                        "is_shadow_filtered": is_shadow_filtered,
                         "status": c_status,
                         "cid": str(cid),
                         "msg": status_msg or "Success",
@@ -347,6 +381,8 @@ class TikTokClient:
                 elif "too fast" in status_msg.lower() or "spam" in status_msg.lower() or status_code == 30005:
                     return {
                         "success": False,
+                        "is_public": False,
+                        "is_shadow_filtered": False,
                         "status": "spam",
                         "cid": None,
                         "msg": status_msg or "Rate limit / spam detected",
@@ -355,6 +391,8 @@ class TikTokClient:
                 elif "login" in status_msg.lower() or "session" in status_msg.lower():
                     return {
                         "success": False,
+                        "is_public": False,
+                        "is_shadow_filtered": False,
                         "status": "auth",
                         "cid": None,
                         "msg": status_msg or "Authentication failed",
@@ -363,6 +401,8 @@ class TikTokClient:
                 else:
                     return {
                         "success": False,
+                        "is_public": False,
+                        "is_shadow_filtered": False,
                         "status": "error",
                         "cid": None,
                         "msg": status_msg or f"Unconfirmed comment structure (status_code={status_code})",
@@ -371,6 +411,8 @@ class TikTokClient:
             elif resp.status_code == 429:
                 return {
                     "success": False,
+                    "is_public": False,
+                    "is_shadow_filtered": False,
                     "status": "spam",
                     "cid": None,
                     "msg": "HTTP 429 Too Many Requests",
@@ -379,6 +421,8 @@ class TikTokClient:
             elif resp.status_code in (401, 403):
                 return {
                     "success": False,
+                    "is_public": False,
+                    "is_shadow_filtered": False,
                     "status": "auth",
                     "cid": None,
                     "msg": f"HTTP {resp.status_code} Forbidden/Unauthorized",
@@ -387,6 +431,8 @@ class TikTokClient:
             else:
                 return {
                     "success": False,
+                    "is_public": False,
+                    "is_shadow_filtered": False,
                     "status": "http_error",
                     "cid": None,
                     "msg": f"HTTP {resp.status_code}: {resp.text[:80]}",
@@ -396,6 +442,8 @@ class TikTokClient:
             logger.error(f"Network error posting comment on video {aweme_id}: {e}")
             return {
                 "success": False,
+                "is_public": False,
+                "is_shadow_filtered": False,
                 "status": "network_error",
                 "cid": None,
                 "msg": str(e),

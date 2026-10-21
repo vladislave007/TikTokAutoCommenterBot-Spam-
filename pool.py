@@ -90,7 +90,9 @@ class AccountPool:
     def validate_all(self) -> None:
         """
         Validates all accounts in the pool against TikTok authentication.
-        Gracefully handles service unreachability without prematurely disabling accounts.
+        Distinguishes between definitive auth failures (401/403/expired) and
+        transient issues (429 rate limit, 5xx server errors, network drops)
+        so accounts are never disabled accidentally.
         """
         logger.info(f"Validating {len(self.accounts)} accounts against TikTok authentication...")
         for acc in self.accounts:
@@ -98,14 +100,18 @@ class AccountPool:
             if res.get("valid"):
                 acc.username = res.get("username") or "User"
                 logger.info(f"  • {acc.label}: Valid (@{acc.username})")
-            elif res.get("is_network_error"):
-                # Network or TikTok service temporarily unreachable: keep account active
-                err_msg = res.get("error", "Service unreachable")
-                logger.warning(f"  • {acc.label}: Network warning ({err_msg}). Account remains active.")
-            else:
+            elif res.get("is_temporary") or res.get("is_network_error"):
+                # Network or TikTok service temporarily unreachable / rate limited: keep account active
+                err_msg = res.get("error", "Temporary service issue")
+                logger.warning(f"  • {acc.label}: Temporary issue ({err_msg}). Account remains active.")
+            elif res.get("is_auth_error"):
                 # Definitive authentication rejection
                 err = res.get("error", "Authentication failed")
                 acc.mark_invalid(err)
+            else:
+                # Fallback: keep active unless explicitly confirmed dead
+                err = res.get("error", "Unverified session")
+                logger.warning(f"  • {acc.label}: Unverified ({err}). Account remains active.")
 
     def print_summary(self) -> None:
         print(f"\n[+] Loaded {len(self.accounts)} TikTok Account(s) into Carousel:")

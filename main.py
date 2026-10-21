@@ -167,7 +167,16 @@ def main():
                                 res = worker.client.post_comment(int(vid), comment)
                                 if res.get("success"):
                                     worker.sent_count += 1
-                                    print(f"[+] [{worker.label}] Комментарий к видео {vid}: '{comment}'")
+                                    c_status = res.get("status")
+                                    if c_status == 1:
+                                        worker.public_count += 1
+                                        badge = "[✓ ВИДЕН ВСЕМ]"
+                                    elif c_status == 2:
+                                        worker.shadow_count += 1
+                                        badge = "[~ Теневая проверка]"
+                                    else:
+                                        badge = "[✓ Отправлен]"
+                                    print(f"[+] [{worker.label}] {badge} Комментарий к видео {vid}: '{comment}'")
                                 time.sleep(random.randint(15, 25))
                     else:
                         if mode == "2":
@@ -181,7 +190,16 @@ def main():
                                 res = worker.client.post_comment(int(vid), comment)
                                 if res.get("success"):
                                     worker.sent_count += 1
-                                    print(f"[+] [{worker.label}] Комментарий к видео {vid}: '{comment}'")
+                                    c_status = res.get("status")
+                                    if c_status == 1:
+                                        worker.public_count += 1
+                                        badge = "[✓ ВИДЕН ВСЕМ]"
+                                    elif c_status == 2:
+                                        worker.shadow_count += 1
+                                        badge = "[~ Теневая проверка]"
+                                    else:
+                                        badge = "[✓ Отправлен]"
+                                    print(f"[+] [{worker.label}] {badge} Комментарий к видео {vid}: '{comment}'")
                                 time.sleep(random.randint(18, 28))
                 else:
                     # Mode 3: Video Comments Only
@@ -193,7 +211,16 @@ def main():
 
                     if res.get("success"):
                         worker.sent_count += 1
-                        print(f"[+] [{worker.label}] Прокомментировал видео {vid}: '{comment}' (Всего: {worker.sent_count})")
+                        c_status = res.get("status")
+                        if c_status == 1:
+                            worker.public_count += 1
+                            badge = "[✓ ВИДЕН ВСЕМ]"
+                        elif c_status == 2:
+                            worker.shadow_count += 1
+                            badge = "[~ Теневая проверка]"
+                        else:
+                            badge = "[✓ Отправлен]"
+                        print(f"[+] [{worker.label}] {badge} Прокомментировал видео {vid}: '{comment}' (Всего: {worker.sent_count})")
                     elif res.get("error_type") == "spam":
                         print(f"\n[!] [{worker.label}] Лимит спама! Отдых 15 мин...")
                         worker.trigger_cooldown(900, reason="Spam limit")
