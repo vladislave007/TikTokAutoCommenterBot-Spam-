@@ -21,8 +21,8 @@ dist/
 *.egg-info/
 
 # Local test scratch scripts
-test_*.py
-check_*.py
+/test_*.py
+/check_*.py
 get_sessions.py
 login_helper.bat
 for_github/

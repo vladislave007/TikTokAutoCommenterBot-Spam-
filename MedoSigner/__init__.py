@@ -674,18 +674,14 @@ class Gorgon:
         self.cookies = cookies
 
     def hash(self, data: str) -> str:
-        return str(hashlib.md5(self.data.encode()).hexdigest())
+        if not data:
+            return "0" * 32
+        return str(hashlib.md5(data.encode('utf-8')).hexdigest())
 
     def get_base_string(self) -> str:
         base_str = self.hash(self.params)
-        base_str = (
-            base_str + self.hash(self.data) if self.data else base_str + str("0" * 32)
-        )
-        base_str = (
-            base_str + self.hash(self.cookies)
-            if self.cookies
-            else base_str + str("0" * 32)
-        )
+        base_str += self.hash(self.data) if self.data else "0" * 32
+        base_str += self.hash(self.cookies) if self.cookies else "0" * 32
         return base_str
 
     def get_value(self) -> json:
