@@ -2,9 +2,6 @@ import requests, random, binascii, os, uuid, time, re, json, sys
 from urllib.parse import urlencode
 from MedoSigner import Argus, Gorgon, md5, Ladon
 
-#+------------------------------------------------------+
-#| TikTok Multi-Account Carousel & Auto Commenter      |
-#+------------------------------------------------------+
 
 class TikTok:
     def __init__(self, sessionid: str) -> None:
@@ -291,9 +288,7 @@ if __name__ == "__main__":
         except Exception:
             pass
 
-    print("=" * 60)
-    print("     TikTok Multi-Account Carousel & Auto-Commenter")
-    print("=" * 60)
+    print("\n[+] TikTok Multi-Account Carousel & Auto-Commenter")
     
     sessions = load_accounts()
     if not sessions:
