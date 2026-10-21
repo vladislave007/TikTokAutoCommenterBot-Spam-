@@ -144,9 +144,10 @@ def main():
                                 c_status = res.get("status")
                                 is_pub = (c_status == 1)
                                 is_shd = (c_status == 2)
-                                badge = "[✓ ВИДЕН ВСЕМ]" if is_pub else ("[~ Теневая проверка]" if is_shd else "[✓ Отправлен]")
-                                print(f"[+] [{worker.label}] {badge} Ответил @{user_label}: '{comment}' ({c_idx}/{len(existing_comments)}) [Всего: {worker.sent_count + 1}]")
-                                if worker.register_success(is_public=is_pub, is_shadow=is_shd):
+                                badge = "[✓ Статус: 1 (публичный)]" if is_pub else ("[~ Статус: 2 (на проверке)]" if is_shd else f"[✓ Статус: {c_status}]")
+                                did_maintenance = worker.register_success(is_public=is_pub, is_shadow=is_shd)
+                                print(f"[+] [{worker.label}] {badge} Ответил @{user_label}: '{comment}' ({c_idx}/{len(existing_comments)}) [Всего: {worker.sent_count}]")
+                                if did_maintenance:
                                     print(f"[*] [{worker.label}] Плановый микро-прогрев выполнен! Аккаунт отдыхает 5-8 мин, карусель переключается дальше...")
 
                             elif res.get("error_type") == "spam":
@@ -179,9 +180,10 @@ def main():
                                     c_status = res.get("status")
                                     is_pub = (c_status == 1)
                                     is_shd = (c_status == 2)
-                                    badge = "[✓ ВИДЕН ВСЕМ]" if is_pub else ("[~ Теневая проверка]" if is_shd else "[✓ Отправлен]")
-                                    print(f"[+] [{worker.label}] {badge} Комментарий к видео {vid}: '{comment}'")
-                                    if worker.register_success(is_public=is_pub, is_shadow=is_shd):
+                                    badge = "[✓ Статус: 1 (публичный)]" if is_pub else ("[~ Статус: 2 (на проверке)]" if is_shd else f"[✓ Статус: {c_status}]")
+                                    did_maintenance = worker.register_success(is_public=is_pub, is_shadow=is_shd)
+                                    print(f"[+] [{worker.label}] {badge} Комментарий к видео {vid}: '{comment}' [Всего: {worker.sent_count}]")
+                                    if did_maintenance:
                                         print(f"[*] [{worker.label}] Плановый микро-прогрев выполнен! Аккаунт отдыхает 5-8 мин, карусель переключается дальше...")
                                 time.sleep(random.randint(15, 25))
                     else:
@@ -198,9 +200,10 @@ def main():
                                     c_status = res.get("status")
                                     is_pub = (c_status == 1)
                                     is_shd = (c_status == 2)
-                                    badge = "[✓ ВИДЕН ВСЕМ]" if is_pub else ("[~ Теневая проверка]" if is_shd else "[✓ Отправлен]")
-                                    print(f"[+] [{worker.label}] {badge} Комментарий к видео {vid}: '{comment}'")
-                                    if worker.register_success(is_public=is_pub, is_shadow=is_shd):
+                                    badge = "[✓ Статус: 1 (публичный)]" if is_pub else ("[~ Статус: 2 (на проверке)]" if is_shd else f"[✓ Статус: {c_status}]")
+                                    did_maintenance = worker.register_success(is_public=is_pub, is_shadow=is_shd)
+                                    print(f"[+] [{worker.label}] {badge} Комментарий к видео {vid}: '{comment}' [Всего: {worker.sent_count}]")
+                                    if did_maintenance:
                                         print(f"[*] [{worker.label}] Плановый микро-прогрев выполнен! Аккаунт отдыхает 5-8 мин, карусель переключается дальше...")
                                 time.sleep(random.randint(18, 28))
                 else:
@@ -215,9 +218,10 @@ def main():
                         c_status = res.get("status")
                         is_pub = (c_status == 1)
                         is_shd = (c_status == 2)
-                        badge = "[✓ ВИДЕН ВСЕМ]" if is_pub else ("[~ Теневая проверка]" if is_shd else "[✓ Отправлен]")
-                        print(f"[+] [{worker.label}] {badge} Прокомментировал видео {vid}: '{comment}' (Всего: {worker.sent_count + 1})")
-                        if worker.register_success(is_public=is_pub, is_shadow=is_shd):
+                        badge = "[✓ Статус: 1 (публичный)]" if is_pub else ("[~ Статус: 2 (на проверке)]" if is_shd else f"[✓ Статус: {c_status}]")
+                        did_maintenance = worker.register_success(is_public=is_pub, is_shadow=is_shd)
+                        print(f"[+] [{worker.label}] {badge} Прокомментировал видео {vid}: '{comment}' (Всего: {worker.sent_count})")
+                        if did_maintenance:
                             print(f"[*] [{worker.label}] Плановый микро-прогрев выполнен! Аккаунт отдыхает 5-8 мин, карусель переключается дальше...")
                     elif res.get("error_type") == "spam":
                         print(f"\n[!] [{worker.label}] Лимит спама! Отдых 15 мин...")

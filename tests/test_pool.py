@@ -140,6 +140,71 @@ class TestAccountPool(unittest.TestCase):
             self.assertEqual(acc.state, AccountState.COOLDOWN)
             self.assertGreaterEqual(acc.cooldown_remaining, 299)
 
+    def test_get_next_available_all_accounts_invalid_or_dead(self):
+        """Verifies get_next_available returns None and never selects an invalid/dead account."""
+        self.pool.accounts[0].state = AccountState.INVALID
+        self.pool.accounts[1].state = AccountState.DEAD
+        self.pool.accounts[2].state = AccountState.INVALID
+
+        self.assertEqual(len(self.pool.active_accounts), 0)
+        selected = self.pool.get_next_available()
+        self.assertIsNone(selected)
+
+    def test_register_success_warmup_exception_does_not_reset_counter_or_cooldown(self):
+        """Verifies that if warm_up raises an exception, counter is not reset and cooldown is aborted."""
+        acc = self.pool.accounts[0]
+        with unittest.mock.patch.object(acc.client, "warm_up") as mock_warm:
+            mock_warm.side_effect = RuntimeError("TikTok API connection reset")
+
+            triggered = acc.register_success(is_public=True, threshold=1)
+            self.assertFalse(triggered)
+            self.assertEqual(acc.sent_since_warmup, 1)
+            self.assertEqual(acc.state, AccountState.READY)
+            self.assertEqual(acc.cooldown_remaining, 0)
+
+    def test_register_success_warmup_zero_watched_aborts_cooldown(self):
+        """Verifies that if warm_up returns 0 watched videos, counter is not reset and cooldown is aborted."""
+        acc = self.pool.accounts[0]
+        with unittest.mock.patch.object(acc.client, "warm_up") as mock_warm:
+            mock_warm.return_value = {"watched": 0, "liked": 0, "followed": 0}
+
+            triggered = acc.register_success(is_public=True, threshold=1)
+            self.assertFalse(triggered)
+            self.assertEqual(acc.sent_since_warmup, 1)
+            self.assertEqual(acc.state, AccountState.READY)
+
+    def test_register_success_counters_incremented_strictly_once(self):
+        """Verifies that each call to register_success increments metrics strictly once."""
+        acc = self.pool.accounts[0]
+        self.assertEqual(acc.sent_count, 0)
+        self.assertEqual(acc.public_count, 0)
+        self.assertEqual(acc.shadow_count, 0)
+        self.assertEqual(acc.sent_since_warmup, 0)
+
+        acc.register_success(is_public=True, is_shadow=False, threshold=100)
+        self.assertEqual(acc.sent_count, 1)
+        self.assertEqual(acc.public_count, 1)
+        self.assertEqual(acc.shadow_count, 0)
+        self.assertEqual(acc.sent_since_warmup, 1)
+
+        acc.register_success(is_public=False, is_shadow=True, threshold=100)
+        self.assertEqual(acc.sent_count, 2)
+        self.assertEqual(acc.public_count, 1)
+        self.assertEqual(acc.shadow_count, 1)
+        self.assertEqual(acc.sent_since_warmup, 2)
+
+    def test_cooldown_expired_transitions_to_ready(self):
+        """Verifies that once cooldown_until passes, is_available transitions account to READY."""
+        acc = self.pool.accounts[0]
+        acc.trigger_cooldown(seconds=500)
+        self.assertEqual(acc.state, AccountState.COOLDOWN)
+        self.assertFalse(acc.is_available)
+
+        # Fast forward time past cooldown
+        acc.cooldown_until = time.time() - 5
+        self.assertTrue(acc.is_available)
+        self.assertEqual(acc.state, AccountState.READY)
+
 
 if __name__ == "__main__":
     unittest.main()

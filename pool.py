@@ -56,9 +56,10 @@ class Account:
     def register_success(self, is_public: bool = False, is_shadow: bool = False, threshold: int = 15) -> bool:
         """
         Registers a successfully posted comment, tracks metrics, and triggers
-        periodic organic micro-warmup (FYP scroll + like) and a natural rest cooldown
-        (5-8 minutes) to ensure safe, undetected 8-12+ hour autonomous runs.
-        Returns True if phase maintenance was initiated.
+        periodic organic micro-warmup (FYP scroll + like) and a natural rest cooldown.
+        If warm_up fails or raises an exception, the counter is NOT reset and
+        the rest cooldown is NOT triggered.
+        Returns True if phase maintenance was successfully completed.
         """
         self.sent_count += 1
         self.sent_since_warmup += 1
@@ -68,18 +69,28 @@ class Account:
             self.shadow_count += 1
 
         if self.sent_since_warmup >= threshold:
-            logger.info(f"[{self.label}] Лимит непрерывной активности ({self.sent_since_warmup} комментов). Запуск планового микро-прогрева...")
+            logger.info(f"[{self.label}] Лимит активности ({self.sent_since_warmup} комментов). Запуск планового микро-прогрева...")
+            warm_success = False
             try:
                 stats = self.client.warm_up(min_videos=2, max_videos=3)
-                w, l = stats.get("watched", 0), stats.get("liked", 0)
-                logger.info(f"[{self.label}] Микро-прогрев завершен: {w} видео, {l} лайков.")
+                if isinstance(stats, dict) and stats.get("watched", 0) > 0:
+                    w = stats.get("watched", 0)
+                    l = stats.get("liked", 0)
+                    logger.info(f"[{self.label}] Микро-прогрев завершен: просмотрено {w} видео, {l} лайков.")
+                    warm_success = True
+                else:
+                    logger.warning(f"[{self.label}] Микро-прогрев не вернул просмотров: {stats}")
             except Exception as e:
-                logger.debug(f"Phase warm-up exception: {e}")
+                logger.warning(f"[{self.label}] Исключение при выполнении микро-прогрева: {e}")
 
-            self.sent_since_warmup = 0
-            rest_seconds = random.randint(300, 480)
-            self.trigger_cooldown(rest_seconds, reason="Плановый органический отдых (режим 8-12ч)")
-            return True
+            if warm_success:
+                self.sent_since_warmup = 0
+                rest_seconds = random.randint(300, 480)
+                self.trigger_cooldown(rest_seconds, reason="Плановый органический отдых (режим 8-12ч)")
+                return True
+            else:
+                logger.warning(f"[{self.label}] Прогрев не удался. Счётчик активности не сброшен, отдых отменён.")
+                return False
         return False
 
 
@@ -94,27 +105,43 @@ class AccountPool:
 
     def get_next_available(self) -> Account:
         """
-        Retrieves the next ready account in round-robin sequence.
-        Skips invalid/dead accounts.
+        Retrieves the next ready account in round-robin sequence from active accounts.
+        If all accounts are INVALID or DEAD, returns None immediately.
         If all active accounts are in cooldown, waits for the shortest cooldown to expire.
+        Guarantees that an INVALID or DEAD account is NEVER returned.
         """
         active = self.active_accounts
         if not active:
             logger.critical("No valid/active accounts remaining in the carousel pool!")
             return None
 
-        # Check in round-robin order
-        for _ in range(len(self.accounts)):
-            acc = self.accounts[self.current_idx % len(self.accounts)]
-            self.current_idx = (self.current_idx + 1) % len(self.accounts)
+        # Check only among active accounts in round-robin order
+        for _ in range(len(active)):
+            acc = active[self.current_idx % len(active)]
+            self.current_idx = (self.current_idx + 1) % len(active)
             if acc.is_available:
                 return acc
 
-        # All active accounts are currently resting
+        # Re-check active accounts
+        active = self.active_accounts
+        if not active:
+            logger.critical("No valid/active accounts remaining in the carousel pool!")
+            return None
+
+        # All active accounts are currently resting in cooldown
         shortest_acc = min(active, key=lambda a: a.cooldown_remaining)
         wait_time = shortest_acc.cooldown_remaining
-        logger.info(f"All {len(active)} active account(s) are resting. Waiting {wait_time + 1}s for {shortest_acc.label}...")
-        time.sleep(wait_time + 1)
+        if wait_time > 0:
+            logger.info(f"All {len(active)} active account(s) are resting. Waiting {wait_time + 1}s for {shortest_acc.label}...")
+            time.sleep(wait_time + 1)
+
+        # Ensure account is active and not INVALID or DEAD
+        if shortest_acc.state in (AccountState.INVALID, AccountState.DEAD):
+            active = self.active_accounts
+            if not active:
+                return None
+            return self.get_next_available()
+
         shortest_acc.state = AccountState.READY
         return shortest_acc
 
