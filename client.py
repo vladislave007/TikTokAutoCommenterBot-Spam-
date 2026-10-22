@@ -17,8 +17,10 @@ class TikTokClient:
     and robust error handling (session validation, rate-limit backoff, status detection).
     """
 
-    def __init__(self, sessionid: str, timeout: int = 10) -> None:
+    def __init__(self, sessionid: str, proxy: str = None, timeout: int = 10) -> None:
         self.sessionid = sessionid
+        self.proxy = proxy
+        self.proxies = {"http": proxy, "https": proxy} if proxy else None
         self.timeout = timeout
         self.base_url = "https://api22-normal-c-alisg.tiktokv.com"
         self.web_base_url = "https://www.tiktok.com"
@@ -97,7 +99,7 @@ class TikTokClient:
         }
 
         try:
-            resp = requests.get(url, headers=headers, timeout=self.timeout)
+            resp = requests.get(url, headers=headers, timeout=self.timeout, proxies=self.proxies)
             if resp.status_code == 200:
                 data = resp.json().get("data", {})
                 user_id = str(data.get("user_id") or "")
@@ -200,7 +202,7 @@ class TikTokClient:
                 'x-ladon': sig["x-ladon"],
             })
 
-            resp = requests.get(url, params=params, headers=headers, timeout=self.timeout)
+            resp = requests.get(url, params=params, headers=headers, timeout=self.timeout, proxies=self.proxies)
             if resp.status_code == 200:
                 data = resp.json()
                 items = data.get('aweme_list', [])
@@ -252,7 +254,7 @@ class TikTokClient:
                 'x-khronos': sig["x-khronos"],
                 'x-ladon': sig["x-ladon"],
             })
-            resp = requests.get(url, params=params, headers=headers, timeout=self.timeout)
+            resp = requests.get(url, params=params, headers=headers, timeout=self.timeout, proxies=self.proxies)
             if resp.status_code == 200:
                 aweme_ids = re.findall(r'"aweme_id":"(\d+)"', resp.text)
                 return list(dict.fromkeys(aweme_ids))
@@ -287,7 +289,7 @@ class TikTokClient:
             })
 
             try:
-                resp = requests.get(url, params=params, headers=headers, timeout=self.timeout)
+                resp = requests.get(url, params=params, headers=headers, timeout=self.timeout, proxies=self.proxies)
                 if resp.status_code == 200:
                     data = resp.json()
                     comments = data.get("comments", [])
@@ -350,7 +352,7 @@ class TikTokClient:
         })
 
         try:
-            resp = requests.post(url, params=params, data=data, headers=headers, timeout=self.timeout)
+            resp = requests.post(url, params=params, data=data, headers=headers, timeout=self.timeout, proxies=self.proxies)
             if resp.status_code == 200:
                 body = resp.json()
                 status_msg = body.get("status_msg", "")
@@ -469,7 +471,7 @@ class TikTokClient:
         })
 
         try:
-            resp = requests.post(url, params=params, headers=headers, timeout=self.timeout)
+            resp = requests.post(url, params=params, headers=headers, timeout=self.timeout, proxies=self.proxies)
             return resp.status_code == 200
         except requests.exceptions.RequestException as e:
             logger.debug(f"Like request failed: {e}")
@@ -499,7 +501,7 @@ class TikTokClient:
         })
 
         try:
-            resp = requests.post(url, params=params, headers=headers, timeout=self.timeout)
+            resp = requests.post(url, params=params, headers=headers, timeout=self.timeout, proxies=self.proxies)
             if resp.status_code == 200:
                 data = resp.json()
                 return data.get("follow_status") in (1, 2) or data.get("status_code") == 0
@@ -530,7 +532,7 @@ class TikTokClient:
                 'x-ladon': sig["x-ladon"],
             })
 
-            resp = requests.get(url, params=params, headers=headers, timeout=self.timeout)
+            resp = requests.get(url, params=params, headers=headers, timeout=self.timeout, proxies=self.proxies)
             if resp.status_code == 200:
                 data = resp.json()
                 items = data.get('aweme_list', [])

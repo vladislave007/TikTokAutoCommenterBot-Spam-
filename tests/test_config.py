@@ -58,6 +58,29 @@ class TestConfig(unittest.TestCase):
         reloaded = load_comments(comments_path=self.com_path)
         self.assertEqual(reloaded, custom)
 
+    def test_load_proxies(self):
+        """Verifies loading proxies from file with comments, whitespace, and auto-prefixing."""
+        from config import load_proxies
+        proxy_path = os.path.join(self.test_dir.name, "test_proxies.txt")
+
+        # Non-existent file returns empty list
+        self.assertEqual(load_proxies(proxies_path=proxy_path), [])
+
+        with open(proxy_path, "w", encoding="utf-8") as f:
+            f.write("# Proxy list\n\n")
+            f.write("192.168.1.100:8080\n")
+            f.write("  http://user:pass@10.0.0.1:3128  \n")
+            f.write("socks5://127.0.0.1:1080\n")
+            f.write("# duplicate line\n")
+            f.write("http://192.168.1.100:8080\n")
+
+        proxies = load_proxies(proxies_path=proxy_path)
+        self.assertEqual(proxies, [
+            "http://192.168.1.100:8080",
+            "http://user:pass@10.0.0.1:3128",
+            "socks5://127.0.0.1:1080"
+        ])
+
 
 if __name__ == "__main__":
     unittest.main()

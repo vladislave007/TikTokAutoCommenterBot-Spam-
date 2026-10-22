@@ -1,10 +1,12 @@
 import os
 import json
+import re
 from logger import logger
 
 ACCOUNTS_FILE = "accounts.txt"
 CONFIG_FILE = "config.json"
 COMMENTS_FILE = "comments.json"
+PROXIES_FILE = "proxies.txt"
 
 DEFAULT_COMMENTS = {
     "RU": [
@@ -129,3 +131,30 @@ def save_comments(comments_dict: dict, comments_path: str = COMMENTS_FILE) -> bo
     except Exception as e:
         logger.error(f"Failed to save comments to '{comments_path}': {e}")
         return False
+
+
+def load_proxies(proxies_path: str = PROXIES_FILE) -> list:
+    """
+    Loads proxy URLs from proxies.txt.
+    Supports http://, https://, socks5://, and raw ip:port format.
+    Returns an empty list if file doesn't exist or is empty.
+    """
+    proxies = []
+    if not os.path.exists(proxies_path):
+        return proxies
+
+    try:
+        with open(proxies_path, "r", encoding="utf-8") as f:
+            for line in f:
+                p = line.strip()
+                if p and not p.startswith("#"):
+                    if not re.match(r"^[a-zA-Z0-9]+://", p):
+                        p = f"http://{p}"
+                    if p not in proxies:
+                        proxies.append(p)
+        if proxies:
+            logger.info(f"Loaded {len(proxies)} proxy(ies) from '{proxies_path}'.")
+    except Exception as e:
+        logger.error(f"Error reading '{proxies_path}': {e}")
+
+    return proxies

@@ -13,11 +13,12 @@ class AccountState(Enum):
 
 
 class Account:
-    def __init__(self, sessionid: str, index: int) -> None:
+    def __init__(self, sessionid: str, index: int, proxy: str = None) -> None:
         self.sessionid = sessionid
         self.index = index
+        self.proxy = proxy
         self.label = f"Acc #{index} (...{sessionid[-6:]})" if len(sessionid) >= 6 else f"Acc #{index}"
-        self.client = TikTokClient(sessionid)
+        self.client = TikTokClient(sessionid, proxy=proxy)
         self.cooldown_until = 0
         self.state = AccountState.READY
         self.invalid_reason = ""
@@ -126,8 +127,12 @@ class Account:
 
 
 class AccountPool:
-    def __init__(self, sessions: list) -> None:
-        self.accounts = [Account(s, i + 1) for i, s in enumerate(sessions)]
+    def __init__(self, sessions: list, proxies: list = None) -> None:
+        self.proxies = proxies or []
+        self.accounts = []
+        for i, s in enumerate(sessions):
+            p = self.proxies[i % len(self.proxies)] if self.proxies else None
+            self.accounts.append(Account(s, i + 1, proxy=p))
         self.current_idx = 0
 
     @property
@@ -206,11 +211,12 @@ class AccountPool:
         print(f"\n[+] Loaded {len(self.accounts)} TikTok Account(s) into Carousel:")
         for acc in self.accounts:
             user_tag = f" (@{acc.username})" if acc.username else ""
+            proxy_tag = f" [Proxy: {acc.proxy}]" if acc.proxy else ""
             if acc.state == AccountState.READY:
                 status_str = "Ready"
             elif acc.state == AccountState.COOLDOWN:
                 status_str = f"Cooldown ({acc.cooldown_remaining}s)"
             else:
                 status_str = f"Disabled ({acc.invalid_reason or acc.state.value})"
-            print(f"    • {acc.label}{user_tag} - Status: {status_str}")
+            print(f"    • {acc.label}{user_tag}{proxy_tag} - Status: {status_str}")
         print("")

@@ -250,6 +250,17 @@ class TestAccountPool(unittest.TestCase):
         self.assertTrue(acc.is_available)
         self.assertEqual(acc.state, AccountState.READY)
 
+    def test_account_pool_proxy_assignment(self):
+        """Verifies that proxies are assigned to accounts in round-robin fashion."""
+        proxies = ["http://proxy1:8080", "http://proxy2:8080"]
+        pool = AccountPool(self.sessions, proxies=proxies)
+        self.assertEqual(pool.accounts[0].proxy, "http://proxy1:8080")
+        self.assertEqual(pool.accounts[0].client.proxy, "http://proxy1:8080")
+        self.assertEqual(pool.accounts[1].proxy, "http://proxy2:8080")
+        self.assertEqual(pool.accounts[1].client.proxy, "http://proxy2:8080")
+        # 3rd account wraps around to 1st proxy
+        self.assertEqual(pool.accounts[2].proxy, "http://proxy1:8080")
+
 
 if __name__ == "__main__":
     unittest.main()

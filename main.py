@@ -3,7 +3,7 @@ import random
 import sys
 import time
 
-from config import load_accounts, load_comments, save_accounts
+from config import load_accounts, load_comments, save_accounts, load_proxies
 from logger import logger
 from pool import AccountPool, AccountState
 from spintax import spin
@@ -35,7 +35,13 @@ def main():
         logger.critical("No valid session IDs provided. Exiting.")
         sys.exit(1)
 
-    pool = AccountPool(sessions)
+    proxies = load_proxies()
+    if proxies:
+        print(f"[*] Загружено {len(proxies)} прокси из proxies.txt. Прокси распределены по аккаунтам.")
+    else:
+        print("[*] Прокси не используются (файл proxies.txt пуст или отсутствует).")
+
+    pool = AccountPool(sessions, proxies=proxies)
     pool.validate_all()
     pool.print_summary()
 

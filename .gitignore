@@ -3,6 +3,7 @@ config.json
 accounts.txt
 bought_accounts.txt
 my_sessions.txt
+proxies.txt
 .env
 
 # Images and temporary artifacts
