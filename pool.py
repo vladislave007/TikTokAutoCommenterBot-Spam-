@@ -191,6 +191,7 @@ class AccountPool:
         logger.info(f"Validating {len(self.accounts)} accounts against TikTok authentication...")
         for acc in self.accounts:
             res = acc.client.validate_session()
+            acc.proxy = acc.client.proxy
             if res.get("valid"):
                 acc.username = res.get("username") or "User"
                 logger.info(f"  • {acc.label}: Valid (@{acc.username})")

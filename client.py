@@ -116,6 +116,40 @@ class TikTokClient:
                         "is_auth_error": False,
                         "is_temporary": False
                     }
+                elif self.proxies:
+                    # Proxy might be blocked/rejected by TikTok (returning session_expired / empty user_id)
+                    # Test direct connection before marking account invalid!
+                    logger.warning(f"Proxy '{self.proxy}' returned empty user_id. Testing direct fallback...")
+                    try:
+                        d_resp = requests.get(url, headers=headers, timeout=self.timeout)
+                        if d_resp.status_code == 200:
+                            d_data = d_resp.json().get("data", {})
+                            d_uid = str(d_data.get("user_id") or "")
+                            if d_uid and d_uid != "0":
+                                logger.info(f"Direct connection successful (@{d_data.get('username') or d_uid}). Disabling rejected proxy.")
+                                self.proxy = None
+                                self.proxies = None
+                                return {
+                                    "valid": True,
+                                    "user_id": d_uid,
+                                    "username": d_data.get("username") or "",
+                                    "nickname": d_data.get("screen_name") or "",
+                                    "error": "",
+                                    "is_auth_error": False,
+                                    "is_temporary": False
+                                }
+                    except Exception as de:
+                        logger.debug(f"Direct fallback check failed: {de}")
+
+                    return {
+                        "valid": False,
+                        "user_id": "",
+                        "username": "",
+                        "nickname": "",
+                        "error": "Session returned empty user_id (expired/invalid)",
+                        "is_auth_error": True,
+                        "is_temporary": False
+                    }
                 else:
                     return {
                         "valid": False,
@@ -167,6 +201,30 @@ class TikTokClient:
                     "is_temporary": True
                 }
         except requests.exceptions.RequestException as e:
+            if self.proxies:
+                # Proxy tunnel failed (e.g. 502 Bad Gateway, timeout). Fallback to direct check!
+                logger.warning(f"Proxy '{self.proxy}' failed ({e}). Testing direct fallback...")
+                try:
+                    d_resp = requests.get(url, headers=headers, timeout=self.timeout)
+                    if d_resp.status_code == 200:
+                        d_data = d_resp.json().get("data", {})
+                        d_uid = str(d_data.get("user_id") or "")
+                        if d_uid and d_uid != "0":
+                            logger.info(f"Direct connection successful (@{d_data.get('username') or d_uid}). Disabling failed proxy.")
+                            self.proxy = None
+                            self.proxies = None
+                            return {
+                                "valid": True,
+                                "user_id": d_uid,
+                                "username": d_data.get("username") or "",
+                                "nickname": d_data.get("screen_name") or "",
+                                "error": "",
+                                "is_auth_error": False,
+                                "is_temporary": False
+                            }
+                except Exception as de:
+                    logger.debug(f"Direct fallback check failed: {de}")
+
             logger.warning(f"Network error during session validation: {e}")
             return {
                 "valid": False,
